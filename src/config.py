@@ -1,5 +1,8 @@
 import os
+from pathlib import Path
 
+PROJECT_DIR = Path(os.path.dirname(os.path.realpath(__file__))).parent.absolute()
+print(PROJECT_DIR)
 
 ROOT_DIR = os.path.join('E:\\', 'Neuroscience', 'data', 'Stefano', 'aws', 'rawData', 'vz-data-to vs6', 'analyzed_data', 'v1', 'VS6_MsBrain_A3_VS6library_V3_LH_02-07-21')
 
