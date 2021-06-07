@@ -95,7 +95,7 @@ def cell_boundaries():
             boundaries.append(fov_cell.tolist())
             keys.append(fov_cell_key)
     return pd.DataFrame({'cell_key': keys,
-                         'cell_id': np.arange(1, len(boundaries) + 1).astype(np.int),
+                         'cell_label': np.arange(1, len(boundaries) + 1).astype(np.int),
                          'cell_boundaries': boundaries})
 
 

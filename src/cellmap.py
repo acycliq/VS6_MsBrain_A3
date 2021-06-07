@@ -101,10 +101,10 @@ def get_label_image(boundaries_df, cfg):
     coo_data_list = []
     cell_props_list = []
     for index, row in boundaries_df.iterrows():
-        cell_id = row['cell_id']
+        cell_label = row['cell_label']
         if index % 1000 == 0:
-            logger.info('Doing cell id: %d from a total %d' % (cell_id, boundaries_df.shape[0]))
-        assert int(index + 1) == cell_id, 'Are these miss-alinged?'
+            logger.info('Doing cell id: %d from a total %d' % (cell_label, boundaries_df.shape[0]))
+        assert int(index + 1) == cell_label, 'Are these miss-alinged?'
 
         # 1. get the boundaries coords
         poly = np.array(row['cell_boundaries'])
@@ -122,11 +122,11 @@ def get_label_image(boundaries_df, cfg):
 
         # 4. fill now the polygon, label it. Make a mask
         boundaries = list(zip(x, y))
-        mask = get_mask(boundaries, cell_id)
+        mask = get_mask(boundaries, cell_label)
 
         # 5. Get area area and cell centroid
         props = regionprops(mask)[0]
-        _cell_props = pd.DataFrame({'cell_id': [cell_id],
+        _cell_props = pd.DataFrame({'cell_label': [cell_label],
                           'area': [props.area],
                           'centroid_x': [props.centroid[1] + offset_x],
                           'centroid_y': [props.centroid[0] + offset_y]})
