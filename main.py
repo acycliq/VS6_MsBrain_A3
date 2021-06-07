@@ -45,7 +45,7 @@ def label_spots(label_image, spots: np.array) -> np.array:
 
 def run(cfg):
     boundaries = cell_boundaries()
-    label_image, cell_props = get_label_image(boundaries.head(1000), cfg)
+    label_image, cell_props = get_label_image(boundaries, cfg)
     spots_df = read_spots(cfg)
 
     spots = spots_df[['global_x_px', 'global_y_px']].values
