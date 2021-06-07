@@ -21,6 +21,7 @@ logging.basicConfig(
 def read_spots(cfg):
     # Transormation from micron to pixel coords
     tx, ty, _, _ = transformation(cfg)
+    
     # read the spots from the raw files
     spots_path = cfg['detected_transcripts']
     chunks = pd.read_csv(spots_path, chunksize=100000)
@@ -50,8 +51,7 @@ def run(cfg):
     spots = spots_df[['global_x_px', 'global_y_px']].values
     spot_labels = label_spots(label_image.tocsc(), spots)
     spots_df = spots_df.assign(spots_label=spot_labels)
-
-    print('OK')
+    spots_df.to_csv('transcripts.csv')
 
 
 if __name__=="__main__":
