@@ -127,9 +127,10 @@ def get_label_image(boundaries_df, cfg):
         # 5. Get area area and cell centroid
         props = regionprops(mask)[0]
         _cell_props = pd.DataFrame({'cell_label': [cell_label],
-                          'area': [props.area],
-                          'centroid_x': [props.centroid[1] + offset_x],
-                          'centroid_y': [props.centroid[0] + offset_y]})
+                                    'cell_key': row['cell_key'],
+                                    'area': [props.area],
+                                    'centroid_x': [props.centroid[1] + offset_x],
+                                    'centroid_y': [props.centroid[0] + offset_y]})
 
         mask = coo_matrix(mask)
 

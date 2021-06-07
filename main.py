@@ -45,15 +45,19 @@ def label_spots(label_image, spots: np.array) -> np.array:
 
 def run(cfg):
     boundaries = cell_boundaries()
-    label_image, cell_props = get_label_image(boundaries, cfg)
+    label_image, cell_props = get_label_image(boundaries.head(1000), cfg)
     spots_df = read_spots(cfg)
 
     spots = spots_df[['global_x_px', 'global_y_px']].values
     labels = label_spots(label_image.tocsc(), spots)
     spots_df = spots_df.assign(cell_label=labels)
+
+    # save now the results
     spots_df.to_csv('transcripts.csv', index=False)
+    cell_props.to_csv('cell_props.csv', index=False)
 
 
 if __name__=="__main__":
     cfg = config.DEFAULT
     run(cfg)
+    logger.info('Done!')
