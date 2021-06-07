@@ -89,26 +89,26 @@ def get_mask(boundaries, label):
     return np.array(img)
 
 
-def get_label_image():
-    cfg = config.DEFAULT
-    boundaries_file = "../dashboard/data/cellBoundaries.tsv"
-    outer_rings = pd.read_csv(boundaries_file, sep='\t')
+def get_label_image(boundaries_df, cfg):
+    # cfg = config.DEFAULT
+    # boundaries_file = "../dashboard/data/cellBoundaries.tsv"
+    # boundaries_df = pd.read_csv(boundaries_file, sep='\t')
     tx, ty, img, _ = transformation(cfg)
 
     coo_list = []
     coo_row_list = []
     coo_col_list = []
     coo_data_list = []
-    df_list = []
-    for index, row in outer_rings.iterrows():
+    cell_props_list = []
+    for index, row in boundaries_df.iterrows():
         cell_id = row['cell_id']
         if index % 1000 == 0:
-            logger.info('Doing cell id: %d from a total %d' % (cell_id, outer_rings.shape[0]))
+            logger.info('Doing cell id: %d from a total %d' % (cell_id, boundaries_df.shape[0]))
         assert int(index + 1) == cell_id, 'Are these miss-alinged?'
 
         # 1. get the boundaries coords
-        poly = row['coords']
-        poly = np.array(json.loads(poly))
+        poly = np.array(row['cell_boundaries'])
+        # poly = np.array(json.loads(poly))
 
         # 2. Convert micron to pixel coords
         x_px = tx(poly[:,0]).astype(np.uint32)
@@ -126,7 +126,7 @@ def get_label_image():
 
         # 5. Get area area and cell centroid
         props = regionprops(mask)[0]
-        _df = pd.DataFrame({'cell_id': [cell_id],
+        _cell_props = pd.DataFrame({'cell_id': [cell_id],
                           'area': [props.area],
                           'centroid_x': [props.centroid[1] + offset_x],
                           'centroid_y': [props.centroid[0] + offset_y]})
@@ -139,17 +139,20 @@ def get_label_image():
         coo_row_list.append(_coo.row)
         coo_col_list.append(_coo.col)
         coo_data_list.append(_coo.data)
-        df_list.append(_df)
+        cell_props_list.append(_cell_props)
 
     coo_row_stacked = np.hstack(coo_row_list)
     coo_col_stacked = np.hstack(coo_col_list)
     coo_data_stacked = np.hstack(coo_data_list)
     label_image = coo_matrix((coo_data_stacked, (coo_row_stacked, coo_col_stacked)), shape=(img['height'], img['width']))
-    df = pd.concat(df_list, ignore_index=True)
+    cell_props = pd.concat(cell_props_list, ignore_index=True)
 
-    return label_image, df
+    return label_image, cell_props
 
 
 if __name__ == "__main__":
-    label_image, df = get_label_image()
+    cfg = config.DEFAULT
+    boundaries_file = "../dashboard/data/cellBoundaries.tsv"
+    boundaries_df = pd.read_csv(boundaries_file, sep='\t')
+    label_image, cell_props = get_label_image(boundaries_df, cfg)
     logger.info(label_image.shape)

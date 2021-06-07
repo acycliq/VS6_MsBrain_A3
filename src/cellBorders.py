@@ -58,12 +58,14 @@ def get_boundaries(fileName: str, zIndex:int=3) -> list:
     target_hdf5 = os.path.join(config.ROOT_DIR, 'cell_boundaries', fileName)
     with h5py.File(target_hdf5, 'r') as data:
         cell_boundaries = []
+        cell_keys = []
         for cell_key in data['featuredata'].keys():
             for p in data['featuredata'][cell_key]['zIndex_%i' % zIndex]:
                 temp = np.array(data['featuredata'][cell_key]['zIndex_%i' % zIndex][p]['coordinates'][0])
                 temp = outline_min(temp)
                 cell_boundaries.append(temp)
-    return cell_boundaries
+                cell_keys.append(cell_key)
+    return cell_boundaries, cell_keys
 
 
 def outline_min(arr: np.array) -> np.array:
@@ -85,12 +87,16 @@ def cell_boundaries():
     # cellMetadata = pd.read_csv(metadata_csv).rename(columns={'Unnamed: 0': 'uid'})
 
     hfd5_files = [f for f in listdir(hdf5_dir) if isfile(join(hdf5_dir, f)) and os.path.splitext(f)[1] == '.hdf5']
-    out = []
+    boundaries = []
+    keys = []
     for hdf5_file in natsorted(hfd5_files):
-        fov_cells = get_boundaries(hdf5_file)
-        for fov_cell in fov_cells:
-            out.append(fov_cell.tolist())
-    return out
+        fov_cells, fov_cell_keys = get_boundaries(hdf5_file)
+        for fov_cell, fov_cell_key in zip(fov_cells, fov_cell_keys):
+            boundaries.append(fov_cell.tolist())
+            keys.append(fov_cell_key)
+    return pd.DataFrame({'cell_key': keys,
+                         'cell_id': np.arange(1, len(boundaries) + 1).astype(np.int),
+                         'cell_boundaries': boundaries})
 
 
 if __name__=="__main__":
