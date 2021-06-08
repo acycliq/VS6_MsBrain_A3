@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import src.config as config
 import logging
+import json
 from src.cellBorders import cell_boundaries
 from src.cellmap import get_label_image, transformation
 
@@ -45,6 +46,9 @@ def label_spots(label_image, spots: np.array) -> np.array:
 
 def run(cfg):
     boundaries = cell_boundaries()
+    # Uncomment the following two lines if you want to get the boundaries from a precached csv file
+    # boundaries = pd.read_csv('cell_boundaries_2.csv')
+    # boundaries['cell_boundaries'] = boundaries.cell_boundaries.apply(json.loads)
     label_image, cell_props = get_label_image(boundaries, cfg)
     spots_df = read_spots(cfg)
 

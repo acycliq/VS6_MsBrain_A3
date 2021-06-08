@@ -94,9 +94,11 @@ def cell_boundaries():
         for fov_cell, fov_cell_key in zip(fov_cells, fov_cell_keys):
             boundaries.append(fov_cell.tolist())
             keys.append(fov_cell_key)
-    return pd.DataFrame({'cell_key': keys,
-                         'cell_label': np.arange(1, len(boundaries) + 1).astype(np.int),
-                         'cell_boundaries': boundaries})
+    out = pd.DataFrame({'cell_key': keys,
+                        'cell_label': np.arange(1, len(boundaries) + 1).astype(np.int),
+                        'cell_boundaries': boundaries})
+    out.to_csv('cell_boundaries.csv', index=False)
+    return out
 
 
 if __name__=="__main__":
