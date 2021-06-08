@@ -85,9 +85,9 @@ def get_mask(boundaries, label):
     :return:
     """
     img = Image.new('L', (2000, 2000), 0)
-    ImageDraw.Draw(img).polygon(boundaries, outline=label, fill=label)
-    return np.array(img)
-
+    ImageDraw.Draw(img).polygon(boundaries, outline=1, fill=1)
+    mask = np.array(img).astype(np.int64) * label
+    return mask
 
 def get_label_image(boundaries_df, cfg):
     # cfg = config.DEFAULT
