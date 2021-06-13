@@ -59,23 +59,23 @@ def splitter_mb(df, dir_path, mb_size):
 
 
 def transformation(cgf):
+    # Micron to pixel transformation
+
     with open(cgf['manifest']) as f:
         settings = json.load(f)
 
     # bounding box in microns
-    bbox = {}
-    bbox['x0'] = settings['bbox_microns'][0]
-    bbox['x1'] = settings['bbox_microns'][2]
-
-    bbox['y0'] = settings['bbox_microns'][1]
-    bbox['y1'] = settings['bbox_microns'][3]
+    bbox = {'x0': settings['bbox_microns'][0],
+            'x1': settings['bbox_microns'][2],
+            'y0': settings['bbox_microns'][1],
+            'y1': settings['bbox_microns'][3]}
 
     # image width and height in pixels
-    img = {}
-    img['width'] = settings['mosaic_width_pixels']
-    img['height'] = settings['mosaic_height_pixels']
+    img = {'width': settings['mosaic_width_pixels'],
+           'height': settings['mosaic_height_pixels']}
 
-    # Affine transformation: a set of coefficients a, b, c, d for transforming a point of a form (x, y) into (a*x + b, c*y + d)
+    # Affine transformation: a set of coefficients a, b, c, d for transforming
+    # a point of a form (x, y) into (a*x + b, c*y + d)
     a = img['width'] / (bbox['x1'] - bbox['x0'])
     b = -1 * img['width'] / (bbox['x1'] - bbox['x0']) * bbox['x0']
     c = img['height'] / (bbox['y1'] - bbox['y0'])
@@ -83,8 +83,8 @@ def transformation(cgf):
 
     tx = lambda x: a * x + b
     ty = lambda y: c * y + d
+    return tx, ty, img, bbox
 
-    return tx, ty
 
 if __name__=="__main__":
     cfg = config.DEFAULT

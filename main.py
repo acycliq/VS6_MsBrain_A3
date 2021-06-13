@@ -9,8 +9,9 @@ import pandas as pd
 import src.config as config
 import logging
 import json
-from src.cellBorders import cell_boundaries
-from src.cellmap import get_label_image, transformation
+from src.cellBorders import cell_boundaries_px
+from src.cellmap import get_label_image
+from src.utils import transformation
 
 logger = logging.getLogger()
 logging.basicConfig(
@@ -45,15 +46,15 @@ def label_spots(label_image, spots: np.array) -> np.array:
 
 
 def run(cfg):
-    CACHED_BOUNDARIES = True
+    CACHED_BOUNDARIES = False
 
     if CACHED_BOUNDARIES:
         boundaries = pd.read_csv('cell_boundaries_2.csv')
         boundaries['cell_boundaries'] = boundaries.cell_boundaries.apply(json.loads)
     else:
-        boundaries = cell_boundaries()
+        px_boundaries = cell_boundaries_px(cfg)
 
-    label_image, cell_props = get_label_image(boundaries, cfg)
+    label_image, cell_props = get_label_image(px_boundaries, cfg)
     spots_df = read_spots(cfg)
 
     spots = spots_df[['global_x_px', 'global_y_px']].values

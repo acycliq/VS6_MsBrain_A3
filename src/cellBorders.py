@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from natsort import natsorted
 import src.config as config
-from src.utils import splitter_mb
+from src.utils import splitter_mb, transformation
 import logging
 
 logger = logging.getLogger()
@@ -48,7 +48,16 @@ def write_tsv(boundaries, out_dir):
     write_celldata_tsv(boundaries, out_dir)
 
 
-def get_boundaries(fileName: str, zIndex:int=3) -> list:
+def micron_to_pixel(temp, cfg):
+    tx, ty, _, _ = transformation(cfg)
+    x = tx(temp[:, 0]).astype(np.int)
+    y = ty(temp[:, 1]).astype(np.int)
+    x_max = x.max()
+    y_max = y.max()
+    return list(zip(x, y)), x_max, y_max
+
+
+def get_boundaries(fileName: str, cfg, zIndex:int=3):
     """
     Helper function that reads a cached hdf5 file and gets the cell boundaries for that specific fov only
     :param fileName:
@@ -59,10 +68,12 @@ def get_boundaries(fileName: str, zIndex:int=3) -> list:
     with h5py.File(target_hdf5, 'r') as data:
         cell_boundaries = []
         cell_keys = []
+
         for cell_key in data['featuredata'].keys():
             for p in data['featuredata'][cell_key]['zIndex_%i' % zIndex]:
                 temp = np.array(data['featuredata'][cell_key]['zIndex_%i' % zIndex][p]['coordinates'][0])
                 temp = outline_min(temp)
+                temp, x_max, y_max = micron_to_pixel(temp, cfg)
                 cell_boundaries.append(temp)
                 cell_keys.append(cell_key)
     return cell_boundaries, cell_keys
@@ -78,7 +89,7 @@ def outline_min(arr: np.array) -> np.array:
     return np.array(arr_min)
 
 
-def cell_boundaries():
+def cell_boundaries_px(cfg):
     """
     :return: returns a list of lists. Each sublist is the list of the x,y coords describing the cell boundaries
     """
@@ -90,9 +101,9 @@ def cell_boundaries():
     boundaries = []
     keys = []
     for hdf5_file in natsorted(hfd5_files):
-        fov_cells, fov_cell_keys = get_boundaries(hdf5_file)
+        fov_cells, fov_cell_keys = get_boundaries(hdf5_file, cfg)
         for fov_cell, fov_cell_key in zip(fov_cells, fov_cell_keys):
-            boundaries.append(fov_cell.tolist())
+            boundaries.append(fov_cell)
             keys.append(fov_cell_key)
     out = pd.DataFrame({'cell_key': keys,
                         'cell_label': np.arange(1, len(boundaries) + 1).astype(np.int),

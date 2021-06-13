@@ -4,6 +4,7 @@ Functions for get the label image given the coords of the polygons' outer rings
 import pandas as pd
 import json
 import src.config as config
+from src.utils import transformation
 from scipy.sparse import coo_matrix, csr_matrix
 import scipy.sparse as sp
 import matplotlib.pyplot as plt
@@ -20,30 +21,30 @@ logging.basicConfig(
 )
 
 
-def transformation(cgf):
-    with open(cgf['manifest']) as f:
-        settings = json.load(f)
-
-    # bounding box in microns
-    bbox = {'x0': settings['bbox_microns'][0],
-            'x1': settings['bbox_microns'][2],
-            'y0': settings['bbox_microns'][1],
-            'y1': settings['bbox_microns'][3]}
-
-    # image width and height in pixels
-    img = {'width': settings['mosaic_width_pixels'],
-           'height': settings['mosaic_height_pixels']}
-
-    # Affine transformation: a set of coefficients a, b, c, d for transforming
-    # a point of a form (x, y) into (a*x + b, c*y + d)
-    a = img['width'] / (bbox['x1'] - bbox['x0'])
-    b = -1 * img['width'] / (bbox['x1'] - bbox['x0']) * bbox['x0']
-    c = img['height'] / (bbox['y1'] - bbox['y0'])
-    d = -1 * img['height'] / (bbox['y1'] - bbox['y0']) * bbox['y0']
-
-    tx = lambda x: a * x + b
-    ty = lambda y: c * y + d
-    return tx, ty, img, bbox
+# def transformation(cgf):
+#     with open(cgf['manifest']) as f:
+#         settings = json.load(f)
+#
+#     # bounding box in microns
+#     bbox = {'x0': settings['bbox_microns'][0],
+#             'x1': settings['bbox_microns'][2],
+#             'y0': settings['bbox_microns'][1],
+#             'y1': settings['bbox_microns'][3]}
+#
+#     # image width and height in pixels
+#     img = {'width': settings['mosaic_width_pixels'],
+#            'height': settings['mosaic_height_pixels']}
+#
+#     # Affine transformation: a set of coefficients a, b, c, d for transforming
+#     # a point of a form (x, y) into (a*x + b, c*y + d)
+#     a = img['width'] / (bbox['x1'] - bbox['x0'])
+#     b = -1 * img['width'] / (bbox['x1'] - bbox['x0']) * bbox['x0']
+#     c = img['height'] / (bbox['y1'] - bbox['y0'])
+#     d = -1 * img['height'] / (bbox['y1'] - bbox['y0']) * bbox['y0']
+#
+#     tx = lambda x: a * x + b
+#     ty = lambda y: c * y + d
+#     return tx, ty, img, bbox
 
 
 # def main():
@@ -110,9 +111,12 @@ def get_label_image(boundaries_df, cfg):
         poly = np.array(row['cell_boundaries'])
         # poly = np.array(json.loads(poly))
 
-        # 2. Convert micron to pixel coords
-        x_px = tx(poly[:,0]).astype(np.uint32)
-        y_px = ty(poly[:,1]).astype(np.uint32)
+        # # 2. Convert micron to pixel coords
+        # x_px = tx(poly[:,0]).astype(np.uint32)
+        # y_px = ty(poly[:,1]).astype(np.uint32)
+
+        x_px = poly[:, 0]
+        y_px = poly[:, 1]
 
         # 3. shift the coords
         offset_x = x_px.min()
