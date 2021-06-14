@@ -9,6 +9,7 @@ import pandas as pd
 import src.config as config
 import logging
 import json
+from scipy.sparse import coo_matrix, save_npz, load_npz
 from src.cellBorders import cell_boundaries_px
 from src.cellmap import get_label_image
 from src.utils import transformation
@@ -49,12 +50,15 @@ def run(cfg):
     CACHED_BOUNDARIES = False
 
     if CACHED_BOUNDARIES:
-        boundaries = pd.read_csv('cell_boundaries_2.csv')
+        boundaries = pd.read_csv('cell_boundaries_px.csv')
         boundaries['cell_boundaries'] = boundaries.cell_boundaries.apply(json.loads)
     else:
         px_boundaries = cell_boundaries_px(cfg)
+        px_boundaries = px_boundaries
+        px_boundaries.to_csv('cell_boundaries_px.csv')
 
     label_image, cell_props = get_label_image(px_boundaries, cfg)
+    save_npz('coo_label_image.npz', label_image)
     spots_df = read_spots(cfg)
 
     spots = spots_df[['global_x_px', 'global_y_px']].values
