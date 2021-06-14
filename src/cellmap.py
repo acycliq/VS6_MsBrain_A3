@@ -90,17 +90,14 @@ def get_mask(boundaries, label):
     mask = np.array(img).astype(np.int64) * label
     return mask
 
+
 def get_label_image(boundaries_df, cfg):
     # cfg = config.DEFAULT
     # boundaries_file = "../dashboard/data/cellBoundaries.tsv"
     # boundaries_df = pd.read_csv(boundaries_file, sep='\t')
     tx, ty, img, _ = transformation(cfg)
 
-    coo_list = []
-    coo_row_list = []
-    coo_col_list = []
-    coo_data_list = []
-    cell_props_list = []
+    label_image = csr_matrix(([], ([], [])), shape=(img['height'], img['width'])).tolil().astype(np.uint32)
     for index, row in boundaries_df.iterrows():
         cell_label = row['cell_label']
         if index % 1000 == 0:
@@ -136,23 +133,17 @@ def get_label_image(boundaries_df, cfg):
                                     'centroid_x': [props.centroid[1] + offset_x],
                                     'centroid_y': [props.centroid[0] + offset_y]})
 
-        mask = coo_matrix(mask)
+        coo_mask = coo_matrix(mask)  # coo_matrix will not have duplicated coords since it is derived from the 2d array
 
         # 5. make now a sparse matrix of the label image. Do not forget to shift back the coords
-        _coo = coo_matrix((mask.data, (mask.row+offset_y, mask.col+offset_x)), shape=(img['height'], img['width']))
-        coo_list.append(_coo)
-        coo_row_list.append(_coo.row)
-        coo_col_list.append(_coo.col)
-        coo_data_list.append(_coo.data)
-        cell_props_list.append(_cell_props)
+        r = coo_mask.row + offset_y
+        c = coo_mask.col + offset_x
+        d = coo_mask.data
+        # _coo = coo_matrix((mask.data, (mask.row+offset_y, mask.col+offset_x)), shape=(img['height'], img['width']))
+        label_image[r, c] = d  # If further down the loop the same (r, c) appears then the label_array will
+        #                        keep the most recent value
 
-    coo_row_stacked = np.hstack(coo_row_list)
-    coo_col_stacked = np.hstack(coo_col_list)
-    coo_data_stacked = np.hstack(coo_data_list)
-    label_image = coo_matrix((coo_data_stacked, (coo_row_stacked, coo_col_stacked)), shape=(img['height'], img['width']))
-    cell_props = pd.concat(cell_props_list, ignore_index=True)
-
-    return label_image, cell_props
+    return label_image
 
 
 if __name__ == "__main__":
