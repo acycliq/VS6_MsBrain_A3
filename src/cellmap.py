@@ -6,6 +6,8 @@ import json
 import src.config as config
 from src.utils import transformation
 from scipy.sparse import coo_matrix, csr_matrix
+from multiprocessing.dummy import Pool as ThreadPool
+from multiprocessing import cpu_count
 import scipy.sparse as sp
 import matplotlib.pyplot as plt
 from skimage.measure import regionprops
@@ -91,13 +93,79 @@ def get_mask(boundaries, label):
     return mask
 
 
+def wrapper(label_image):
+    def inner_func(my_list):
+        cell_key, cell_label, poly = my_list
+
+        if cell_label % 1000 == 0:
+            logger.info('Doing cell id: %d' % (cell_label))
+
+        # 1. get the boundaries coords
+        poly = np.array(poly)
+        # poly = np.array(json.loads(poly))
+
+        # # 2. Convert micron to pixel coords
+        # x_px = tx(poly[:,0]).astype(np.uint32)
+        # y_px = ty(poly[:,1]).astype(np.uint32)
+
+        x_px = poly[:, 0]
+        y_px = poly[:, 1]
+
+        # 3. shift the coords
+        offset_x = x_px.min()
+        offset_y = y_px.min()
+        x = x_px - offset_x
+        y = y_px - offset_y
+
+        # 4. fill now the polygon, label it. Make a mask
+        boundaries = list(zip(x, y))
+        mask = get_mask(boundaries, cell_label)
+
+        # 5. Get area area and cell centroid
+        props = regionprops(mask)[0]
+        _cell_props = pd.DataFrame({'cell_label': [cell_label],
+                                        'cell_key': cell_key,
+                                        'area': [props.area],
+                                        'centroid_x': [props.centroid[1] + offset_x],
+                                        'centroid_y': [props.centroid[0] + offset_y]})
+
+        coo_mask = coo_matrix(mask)  # coo_matrix will not have duplicated coords since it is derived from the 2d array
+
+        # 5. make now a sparse matrix of the label image. Do not forget to shift back the coords
+        r = coo_mask.row + offset_y
+        c = coo_mask.col + offset_x
+        d = coo_mask.data
+        # _coo = coo_matrix((mask.data, (mask.row+offset_y, mask.col+offset_x)), shape=(img['height'], img['width']))
+        label_image[r, c] = d  # If further down the loop the same (r, c) appears then the label_array will
+        #
+        #                        keep the most recent value
+    return inner_func
+
+
+def get_label_image_par(list_of_lists, cfg):
+    N = len(list_of_lists)
+    # list_of_lists = _df.values.tolist()
+    tx, ty, img, _ = transformation(cfg)
+
+    label_image = csr_matrix(([], ([], [])), shape=(img['height'], img['width'])).tolil().astype(np.uint32)
+
+    n = max(1, cpu_count() - 1)
+    pool = ThreadPool(n)
+    pool.map(wrapper(label_image),  list_of_lists)
+    pool.close()
+    pool.join()
+    return label_image, None
+
+
 def get_label_image(boundaries_df, cfg):
     # cfg = config.DEFAULT
     # boundaries_file = "../dashboard/data/cellBoundaries.tsv"
     # boundaries_df = pd.read_csv(boundaries_file, sep='\t')
     tx, ty, img, _ = transformation(cfg)
 
-    label_image = csr_matrix(([], ([], [])), shape=(img['height'], img['width'])).tolil().astype(np.uint32)
+    # label_image = csr_matrix(([], ([], [])), shape=(img['height'], img['width'])).tolil().astype(np.uint32)
+    label_image = np.zeros([img['height'], img['width']]).astype(np.uint32)
+    cell_props_list = []
     for index, row in boundaries_df.iterrows():
         cell_label = row['cell_label']
         if index % 1000 == 0:
@@ -143,7 +211,13 @@ def get_label_image(boundaries_df, cfg):
         label_image[r, c] = d  # If further down the loop the same (r, c) appears then the label_array will
         #                        keep the most recent value
 
-    return label_image
+        # append now the cell props
+        cell_props_list.append(_cell_props)
+
+    # concatenate all cell_props dataframes
+    cell_props = pd.concat(cell_props_list, ignore_index=True)
+    coo_label_image = coo_matrix(label_image)
+    return coo_label_image, cell_props
 
 
 if __name__ == "__main__":
