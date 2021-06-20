@@ -57,7 +57,7 @@ def run(cfg):
         px_boundaries.to_csv('cell_boundaries_px.csv')
 
     # label_image, cell_props = get_label_image(px_boundaries, cfg)
-    label_image, cell_props = get_label_image(px_boundaries, cfg)
+    label_image, cell_props = get_label_image_par(px_boundaries.values.tolist(), cfg)
     save_npz('coo_label_image.npz', coo_matrix(label_image))
     spots_df = read_spots(cfg)
 

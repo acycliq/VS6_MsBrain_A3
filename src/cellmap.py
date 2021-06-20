@@ -6,10 +6,11 @@ import json
 import src.config as config
 from src.utils import transformation
 from scipy.sparse import coo_matrix, csr_matrix
-from multiprocessing.dummy import Pool as ThreadPool
-from multiprocessing import cpu_count
+from multiprocessing import Pool, cpu_count, freeze_support
+from functools import partial
 import scipy.sparse as sp
 import matplotlib.pyplot as plt
+import os
 from skimage.measure import regionprops
 from skimage.draw import line, polygon, circle, ellipse
 import numpy as np
@@ -93,67 +94,79 @@ def get_mask(boundaries, label):
     return mask
 
 
-def wrapper(label_image):
-    def inner_func(my_list):
-        cell_key, cell_label, poly = my_list
+def worker(el, dic):
+    """One worker started per CPU. Receives the label image once and a list of the labels to look for."""
+    pid = os.getpid()
+    # print(f'Worker pid: {pid}, processing cell id: {el[1]}')
 
-        if cell_label % 1000 == 0:
-            logger.info('Doing cell id: %d' % (cell_label))
+    # cfg = config.DEFAULT
+    # boundaries_file = "../dashboard/data/cellBoundaries.tsv"
+    # boundaries_df = pd.read_csv(boundaries_file, sep='\t')
 
-        # 1. get the boundaries coords
-        poly = np.array(poly)
-        # poly = np.array(json.loads(poly))
 
-        # # 2. Convert micron to pixel coords
-        # x_px = tx(poly[:,0]).astype(np.uint32)
-        # y_px = ty(poly[:,1]).astype(np.uint32)
+    _dic = {}
+    cell_label = el[1]
+    if cell_label % 1000 == 0:
+        logger.info('Worker pid: %d processing cell id: %d' % (pid, cell_label))
 
-        x_px = poly[:, 0]
-        y_px = poly[:, 1]
+    # 1. get the boundaries coords
+    poly = np.array(el[2])
+    # poly = np.array(json.loads(poly))
 
-        # 3. shift the coords
-        offset_x = x_px.min()
-        offset_y = y_px.min()
-        x = x_px - offset_x
-        y = y_px - offset_y
+    # # 2. Convert micron to pixel coords
+    # x_px = tx(poly[:,0]).astype(np.uint32)
+    # y_px = ty(poly[:,1]).astype(np.uint32)
 
-        # 4. fill now the polygon, label it. Make a mask
-        boundaries = list(zip(x, y))
-        mask = get_mask(boundaries, cell_label)
+    x_px = poly[:, 0]
+    y_px = poly[:, 1]
 
-        # 5. Get area area and cell centroid
-        props = regionprops(mask)[0]
-        _cell_props = pd.DataFrame({'cell_label': [cell_label],
-                                        'cell_key': cell_key,
-                                        'area': [props.area],
-                                        'centroid_x': [props.centroid[1] + offset_x],
-                                        'centroid_y': [props.centroid[0] + offset_y]})
+    # 3. shift the coords
+    offset_x = x_px.min()
+    offset_y = y_px.min()
+    x = x_px - offset_x
+    y = y_px - offset_y
 
-        coo_mask = coo_matrix(mask)  # coo_matrix will not have duplicated coords since it is derived from the 2d array
+    # 4. fill now the polygon, label it. Make a mask
+    boundaries = list(zip(x, y))
+    mask = get_mask(boundaries, cell_label)
+    coo_mask = coo_matrix(mask)  # coo_matrix will not have duplicated coords since it is derived from the 2d array
 
-        # 5. make now a sparse matrix of the label image. Do not forget to shift back the coords
-        r = coo_mask.row + offset_y
-        c = coo_mask.col + offset_x
-        d = coo_mask.data
-        # _coo = coo_matrix((mask.data, (mask.row+offset_y, mask.col+offset_x)), shape=(img['height'], img['width']))
-        label_image[r, c] = d  # If further down the loop the same (r, c) appears then the label_array will
-        #
-        #                        keep the most recent value
-    return inner_func
+    # 5. make now a sparse matrix of the label image. Do not forget to shift back the coords
+    r = coo_mask.row + offset_y
+    c = coo_mask.col + offset_x
+    d = coo_mask.data
+
+    assert np.all(np.unique(d) == cell_label)
+    label_image[r, c] = d
+
+    return dic
+
+
 
 
 def get_label_image_par(list_of_lists, cfg):
-    N = len(list_of_lists)
-    # list_of_lists = _df.values.tolist()
+    freeze_support()
+
     tx, ty, img, _ = transformation(cfg)
+    label_image = np.zeros((img['height'], img['width']), dtype=np.uint32)
 
-    label_image = csr_matrix(([], ([], [])), shape=(img['height'], img['width'])).tolil().astype(np.uint32)
+    # Get number of cores and split labels across that many workers
+    processes = cpu_count()
 
-    n = max(1, cpu_count() - 1)
-    pool = ThreadPool(n)
-    pool.map(wrapper(label_image),  list_of_lists)
+    print(f'Using {processes} processes')
+
+    # Chunk up the labels across the processes
+    # chunks = np.array_split(list_of_lists, processes)
+    chunks = np.array_split(np.array(list_of_lists, dtype="object"), processes)
+
+    dic = {}
+    # Map the labels across the processes
+    pool = Pool(processes=processes)
+    res = pool.map(partial(worker, label_image=label_image), list_of_lists)
     pool.close()
     pool.join()
+
+    print('ok')
     return label_image, None
 
 
