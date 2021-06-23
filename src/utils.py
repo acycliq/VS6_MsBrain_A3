@@ -4,6 +4,10 @@ import glob
 import csv
 import numpy as np
 import pandas as pd
+import credentials
+from contextlib import closing # this will correctly close the request
+import io
+# import dropbox
 import logging
 import src.config as config
 
@@ -21,6 +25,7 @@ def _get_file(OUT_DIR, n, header_line):
     write = csv.writer(handle, delimiter='\t')
     write.writerow(header_line)
     return file, handle
+
 
 def splitter_mb(df, dir_path, mb_size):
     """ Splits a text file in (almost) equally sized parts on the disk. Assumes that there is a header in the first line
@@ -61,6 +66,8 @@ def splitter_mb(df, dir_path, mb_size):
 def transformation(cgf):
     # Micron to pixel transformation
 
+    # settings = dropbox_streamer(cgf['manifest'])
+
     with open(cgf['manifest']) as f:
         settings = json.load(f)
 
@@ -84,6 +91,30 @@ def transformation(cgf):
     tx = lambda x: a * x + b
     ty = lambda y: c * y + d
     return tx, ty, img, bbox
+
+
+def dropbox_streamer(yourpath):
+    _, file_extension = os.path.splitext('/path/to/somefile.ext')
+    token = credentials.DROPBOX_TOKEN
+    dbx = dropbox.Dropbox(token)
+
+    # Relevant streamer
+    def stream_dropbox_file(path):
+        _, res = dbx.files_download(path)
+        with closing(res) as result:
+            byte_data = result.content
+            return io.BytesIO(byte_data)
+
+    # Usage
+    file_stream = stream_dropbox_file(yourpath)
+    if file_extension == '/csv':
+        out = pd.read_csv(file_stream)
+    elif file_extension == '/tsv':
+        out = pd.read_csv(file_stream, sep='\t')
+    else:
+        out = json.load(file_stream)
+    return out
+
 
 
 if __name__=="__main__":
