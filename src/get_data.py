@@ -3,6 +3,8 @@ Convenience functions only to collect the data needed for the draft viewer
 It reads the vizgen raw data and creates geneData, cellData and cellBoundaries needed
 to visualise the data. It DOES NOT DO ANY CELLTYPING
 """
+import sys
+import os
 import numpy as np
 import pandas as pd
 import src.config as config
@@ -14,7 +16,7 @@ from src.utils import transformation
 from src.utils import splitter_mb, dropbox_streamer
 from src.cellBorders import cell_boundaries_px
 import src.cellBorders as cellBorders
-import os
+
 from contextlib import closing # this will correctly close the request
 import io
 # import dropbox
@@ -98,9 +100,10 @@ if __name__ == "__main__":
     slice_ids = [
         "MsBrain_Eg1_VS6_JH_V6_05-02-2021",
         "MsBrain_Eg2_VS6_V11_JH_05-02-2021",
-        "MsBrain_Eg3_VS6_JH_V6_05-01-2021", # missing file region_1\\images\\manifest.json
+        "MsBrain_Eg3_VS6_JH_V6_05-01-2021",  # missing file region_1\\images\\manifest.json
         "MsBrain_EG4_VS6library_V6_LH_04-14-21", # missing file region_1\\images\\manifest.json
-        "MsBrain_Eg5_VS6_JH_V6_05-16-2021"]
+        "MsBrain_Eg5_VS6_JH_V6_05-16-2021"
+        ]
     region_ids = ['region_0', 'region_1']
 
     for slice_id in slice_ids:
