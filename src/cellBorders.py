@@ -21,10 +21,10 @@ logging.basicConfig(
 
 def write_boundaries_tsv(boundaries, target_dir):
     N = len(boundaries)
-    dummy_list = [[] for d in boundaries]
-    dummy_prob = [[1.0] for d in boundaries]
-    dummy_name = [['Generic'] for d in boundaries]
-    df = pd.DataFrame({'Cell_Num': 1 + np.arange(N),
+    dummy_list = [[] for d in boundaries.cell_label]
+    dummy_prob = [[1.0] for d in boundaries.cell_label]
+    dummy_name = [['Generic'] for d in boundaries.cell_label]
+    df = pd.DataFrame({'Cell_Num': boundaries.cell_label.values,
                        'X': np.zeros(N).astype(np.int),
                        'Y': np.zeros(N).astype(np.int),
                        'Genenames': dummy_list,
@@ -32,15 +32,17 @@ def write_boundaries_tsv(boundaries, target_dir):
                        'ClassName': dummy_name,
                        'Prob': dummy_prob
                        })
-    df.to_csv(os.path.join(target_dir, 'cellData.tsv'), sep='\t', index=False)
+    # df.to_csv(os.path.join(target_dir, 'cellData.tsv'), sep='\t', index=False)
     splitter_mb(df, os.path.join(target_dir, 'cellData'), 99)
+    logger.info('cellData saved at: %s' % os.path.join(target_dir, 'cellData'))
 
 
 def write_celldata_tsv(boundaries, target_dir):
-    df = pd.DataFrame({'cell_id': 1+ np.arange(len(boundaries)),
-                       'coords': boundaries})
+    df = pd.DataFrame({'cell_id': boundaries.cell_label.values,
+                       'coords': boundaries.cell_boundaries})
     df.to_csv(os.path.join(target_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
     splitter_mb(df, os.path.join(target_dir, 'cellBoundaries'), 99)
+    logger.info('cellBoundaries saved at: %s' % os.path.join(target_dir, 'cellBoundaries'))
 
 
 def write_tsv(boundaries, out_dir):
@@ -54,7 +56,7 @@ def micron_to_pixel(temp, cfg):
     y = ty(temp[:, 1]).astype(np.int)
     x_max = x.max()
     y_max = y.max()
-    return list(zip(x, y)), x_max, y_max
+    return np.array(list(zip(x, y))).tolist(), x_max, y_max
 
 
 def get_boundaries(fileName: str, cfg, zIndex:int=3):
@@ -64,7 +66,8 @@ def get_boundaries(fileName: str, cfg, zIndex:int=3):
     :param zIndex:
     :return:
     """
-    target_hdf5 = os.path.join(config.ROOT_DIR, 'cell_boundaries', fileName)
+    # target_hdf5 = os.path.join(config.ROOT_DIR, 'cell_boundaries', fileName)
+    target_hdf5 = os.path.join(cfg['cell_boundaries_dir'], fileName)
     with h5py.File(target_hdf5, 'r') as data:
         cell_boundaries = []
         cell_keys = []
@@ -93,7 +96,8 @@ def cell_boundaries_px(cfg):
     """
     :return: returns a list of lists. Each sublist is the list of the x,y coords describing the cell boundaries
     """
-    hdf5_dir = os.path.join(config.ROOT_DIR, 'cell_boundaries')
+    # hdf5_dir = os.path.join(config.ROOT_DIR, 'cell_boundaries')
+    hdf5_dir = cfg['cell_boundaries_dir']
     # metadata_csv = config.DEFAULT['cell_metadata']
     # cellMetadata = pd.read_csv(metadata_csv).rename(columns={'Unnamed: 0': 'uid'})
 
@@ -108,7 +112,7 @@ def cell_boundaries_px(cfg):
     out = pd.DataFrame({'cell_key': keys,
                         'cell_label': np.arange(1, len(boundaries) + 1).astype(np.int),
                         'cell_boundaries': boundaries})
-    out.to_csv('cell_boundaries.csv', index=False)
+    # out.to_csv('cell_boundaries.csv', index=False)
     return out
 
 
