@@ -109,11 +109,11 @@ def run(slice_id, region_id):
 
 if __name__ == "__main__":
     slice_ids = [
-        # "MsBrain_Eg1_VS6_JH_V6_05-02-2021",
-        # "MsBrain_Eg2_VS6_V11_JH_05-02-2021",
+        "MsBrain_Eg1_VS6_JH_V6_05-02-2021",
+        "MsBrain_Eg2_VS6_V11_JH_05-02-2021",
         "MsBrain_Eg3_VS6_JH_V6_05-01-2021",  # missing file region_1\\images\\manifest.json
-        # "MsBrain_EG4_VS6library_V6_LH_04-14-21", # missing file region_1\\images\\manifest.json
-        # "MsBrain_Eg5_VS6_JH_V6_05-16-2021"
+        "MsBrain_EG4_VS6library_V6_LH_04-14-21", # missing file region_1\\images\\manifest.json
+        "MsBrain_Eg5_VS6_JH_V6_05-16-2021"
         ]
     region_ids = ['region_0', 'region_1']
 
