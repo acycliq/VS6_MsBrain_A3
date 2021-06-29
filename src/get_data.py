@@ -16,7 +16,7 @@ import credentials
 import json
 import math
 from src.utils import transformation
-from src.utils import splitter_mb, dropbox_streamer
+from src.utils import splitter_mb
 from src.cellBorders import cell_boundaries_px, cell_boundaries_px_par
 import src.cellBorders as cellBorders
 from src.utils import rotate_data
@@ -70,12 +70,13 @@ def get_gene_data(cfg):
 
     data_z3 = data_z3.assign(global_x_px=tx(data_z3.global_x.values).astype(np.int32))
     data_z3 = data_z3.assign(global_y_px=ty(data_z3.global_y.values).astype(np.int32))
+    data_z3['Gene_id'] = gene_id
     data_z3 = data_z3.sort_values(by=['global_x_px', 'global_y_px'])
 
-    data_z3 = data_z3[['gene', 'global_x_px', 'global_y_px']].rename(
+    data_z3 = data_z3[['gene', 'global_x_px', 'global_y_px', 'Gene_id']].rename(
         columns={'gene': "Gene", 'global_x_px': "x", 'global_y_px': "y"})
 
-    data_z3['Gene_id'] = gene_id
+
     data_z3['neighbour'] = np.ones(len(gene_id)).astype(np.int32)
     data_z3['neighbour_array'] = [[1] for i in range(len(gene_id))]
     data_z3['neighbour_prob'] = [[1.0] for i in range(len(gene_id))]
@@ -120,11 +121,11 @@ if __name__ == "__main__":
     for slice_id in slice_ids:
         for region_id in region_ids:
             logger.info("\n Started slice %s, region %s" % (slice_id, region_id))
-            try:
-                run(slice_id, region_id)
-            except KeyError as e:
-                logger.info('KeyError %s' % str(e))
-            except FileNotFoundError as e:
-                logger.info('FileNotFoundError %s' % str(e))
+            # try:
+            run(slice_id, region_id)
+            # except KeyError as e:
+            #     logger.info('KeyError %s' % str(e))
+            # except FileNotFoundError as e:
+            #     logger.info('FileNotFoundError %s' % str(e))
 
     logger.info('Done!')
