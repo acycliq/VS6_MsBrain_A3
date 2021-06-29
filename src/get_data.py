@@ -11,11 +11,15 @@ import src.config as config
 import logging
 from geopandas import GeoSeries
 from shapely.geometry import Point, Polygon
+from multiprocessing import Pool
 import credentials
+import json
+import math
 from src.utils import transformation
 from src.utils import splitter_mb, dropbox_streamer
-from src.cellBorders import cell_boundaries_px
+from src.cellBorders import cell_boundaries_px, cell_boundaries_px_par
 import src.cellBorders as cellBorders
+from src.utils import rotate_data
 
 from contextlib import closing # this will correctly close the request
 import io
@@ -39,6 +43,8 @@ def clip_data(df, cfg):
     if cfg['clip_poly']:
         logger.info('Found clipping poly. Keeping data inside %s' % cfg['clip_poly'])
         coords = cfg['clip_poly']
+        logger.info('Rotating the clipping polygon by %d degrees' % cfg['rotation'][0])
+        rotate_data(np.array(coords), cfg)
         poly = Polygon(coords)
 
         s = GeoSeries(map(Point, zip(df.x.values, df.y.values)))
@@ -86,14 +92,18 @@ def run(slice_id, region_id):
     out_path = os.path.join(slice_id, region_id)
 
     geneData = get_gene_data(cfg)
-    geneData = clip_data(geneData, cfg)
+    logger.info('Rotating the transcript data by %d degrees' % cfg['rotation'][0])
+    rot = rotate_data(geneData[['x', 'y']].values.copy(), cfg)
+    geneData.x = rot[:, 0]
+    geneData.y = rot[:, 1]
+    # geneData = clip_data(geneData, cfg)
     splitter_mb(geneData, os.path.join(out_path, 'geneData'), 99)
     logger.info('Gene data saved at: %s' % os.path.join(out_path, 'geneData'))
 
-    # px_boundaries = cell_boundaries_px(cfg)
-    # boundaries = px_boundaries[['cell_label', 'cell_boundaries']]
-    # cellBorders.write_tsv(boundaries, os.path.join(out_path))
-    # logger.info('cell data saved at: %s' % os.path.join(out_path))
+    px_boundaries = cell_boundaries_px_par(cfg)
+    boundaries = px_boundaries[['cell_label', 'cell_boundaries']]
+    cellBorders.write_tsv(boundaries, os.path.join(out_path))
+    logger.info('cell data saved at: %s' % os.path.join(out_path))
 
 
 if __name__ == "__main__":
@@ -110,6 +120,11 @@ if __name__ == "__main__":
         logger.info('Started slice %s' % slice_id)
         for region_id in region_ids:
             logger.info("Started region %s" % region_id)
-            run(slice_id, region_id)
+            try:
+                run(slice_id, region_id)
+            except KeyError as e:
+                logger.info('KeyError %s' % str(e))
+            except FileNotFoundError as e:
+                logger.info('FileNotFoundError %s' % str(e))
 
     logger.info('Done!')

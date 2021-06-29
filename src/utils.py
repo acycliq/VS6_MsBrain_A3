@@ -7,6 +7,7 @@ import pandas as pd
 import credentials
 from contextlib import closing # this will correctly close the request
 import io
+import math
 # import dropbox
 import logging
 import src.config as config
@@ -114,6 +115,69 @@ def dropbox_streamer(yourpath):
     else:
         out = json.load(file_stream)
     return out
+
+
+def get_bbox(w, h):
+    #     w = im.shape[1]
+    #     h = im.shape[0]
+    bottom_left = [0, 0]
+    bottom_right = [w, 0]
+    top_left = [0, h]
+    top_right = [w, h]
+    centre = [w / 2, h / 2]
+
+    bbox = np.array([bottom_left, bottom_right, top_left, top_right, centre])
+    return bbox
+
+
+# 3. rotate the bounding box
+def bbox_rot(w, h, R):
+    offset_x = 0
+    offset_y = 0
+    bbox = get_bbox(w, h)
+    _rot = np.array([R.dot(d).tolist() for d in bbox])
+
+    x = _rot[:, 0].min()
+    y = _rot[:, 1].min()
+    if np.any(x < 0):
+        offset_x = -1 * x.min()
+
+    if np.any(y < 0):
+        offset_y = -1 * y.min()
+    return offset_x, offset_y
+
+
+def rotate_data(points, cgf):
+    """
+    rotates the spots by theta_degrees
+    :param my_points:
+    :param theta_deg:
+    :param cgf:
+    :return:
+    """
+    theta_deg = cgf['rotation'][0]
+    theta_rad = math.radians(theta_deg)
+    with open(cgf['manifest']) as f:
+        settings = json.load(f)
+    w = settings['mosaic_width_pixels']
+    h = settings['mosaic_height_pixels']
+
+    # points = data[['x', 'y']].values
+
+    # 1. rotate the image
+    # w, h = rotate_image(img_in, 'girl_rot.jpg', theta_deg)
+
+    # 2. Rotation matrix to rotate the datapoints
+    R = np.array([[np.cos(theta_rad), -np.sin(theta_rad)], [np.sin(theta_rad), np.cos(theta_rad)]])
+
+    # 2 get the offsets
+    offset_x, offset_y = bbox_rot(w, h, R)
+
+    # 3 rotate the datapoints
+    rot = np.array([R.dot(d).tolist() for d in points])
+    rot = rot + np.array([offset_x, offset_y])
+    return rot
+
 
 
 
