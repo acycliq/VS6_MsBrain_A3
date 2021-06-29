@@ -8,15 +8,19 @@ from os.path import isfile, join
 import numpy as np
 import pandas as pd
 from natsort import natsorted
+from multiprocessing import Pool
+from functools import partial
+from itertools import chain
 import src.config as config
 from src.utils import splitter_mb, transformation
+from src.utils import rotate_data
 import logging
 
 logger = logging.getLogger()
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s:%(levelname)s:%(message)s"
-)
+# logging.basicConfig(
+#     level=logging.INFO,
+#     format="%(asctime)s:%(levelname)s:%(message)s"
+# )
 
 
 def write_boundaries_tsv(boundaries, target_dir):
@@ -105,8 +109,10 @@ def cell_boundaries_px(cfg):
     boundaries = []
     keys = []
     for hdf5_file in natsorted(hfd5_files):
+        logger.info('rotating all cell boundaries in %s by %d degrees' % (hdf5_file, cfg['rotation'][0]))
         fov_cells, fov_cell_keys = get_boundaries(hdf5_file, cfg)
         for fov_cell, fov_cell_key in zip(fov_cells, fov_cell_keys):
+            fov_cell = rotate_data(fov_cell, cfg)
             boundaries.append(fov_cell)
             keys.append(fov_cell_key)
     out = pd.DataFrame({'cell_key': keys,
@@ -114,6 +120,47 @@ def cell_boundaries_px(cfg):
                         'cell_boundaries': boundaries})
     # out.to_csv('cell_boundaries.csv', index=False)
     return out
+
+
+def cell_boundaries_px_par(cfg):
+    """
+    :return: returns a list of lists. Each sublist is the list of the x,y coords describing the cell boundaries
+    """
+    hdf5_dir = cfg['cell_boundaries_dir']
+    hfd5_files = [f for f in listdir(hdf5_dir) if isfile(join(hdf5_dir, f)) and os.path.splitext(f)[1] == '.hdf5']
+
+    hfd5_files = natsorted(hfd5_files)
+    pool = Pool()
+    _res = pool.map(partial(cell_boundaries_px_helper, cfg), hfd5_files)
+    pool.close()
+    pool.join()
+
+    # get the results in two lists
+    keys = [d[0] for d in _res]
+    boundaries = [d[1] for d in _res]
+
+    # flatten the lists
+    keys = list(chain.from_iterable(keys))
+    boundaries = list(chain.from_iterable(boundaries))
+
+    out = pd.DataFrame({'cell_key': keys,
+                        'cell_label': np.arange(1, len(boundaries) + 1).astype(np.int),
+                        'cell_boundaries': boundaries})
+    # out.to_csv('cell_boundaries.csv', index=False)
+    return out
+
+
+def cell_boundaries_px_helper(cfg, hdf5_file):
+    logger.info('rotating all cell boundaries in %s by %d degrees' % (hdf5_file, cfg['rotation'][0]))
+    boundaries = []
+    keys = []
+    fov_cells, fov_cell_keys = get_boundaries(hdf5_file, cfg)
+    for fov_cell, fov_cell_key in zip(fov_cells, fov_cell_keys):
+        fov_cell = rotate_data(fov_cell, cfg).astype(np.int32)
+        boundaries.append(fov_cell.tolist())
+        keys.append(fov_cell_key)
+    return keys, boundaries
+
 
 
 if __name__=="__main__":
