@@ -1,26 +1,11 @@
 import os
 from pathlib import Path
 from collections import defaultdict
-from urllib.parse import urljoin
-import posixpath
 
 PROJECT_DIR = Path(os.path.dirname(os.path.realpath(__file__))).parent.absolute()
 print(PROJECT_DIR)
 
-# ROOT_DIR = os.path.join('E:\\', 'Neuroscience', 'data', 'Stefano', 'aws', 'rawData', 'vz-data-to vs6', 'analyzed_data', 'v1', 'VS6_MsBrain_A3_VS6library_V3_LH_02-07-21')
-#
-# DEFAULT = {
-#     'cell_by_gene': os.path.join(ROOT_DIR, 'cell_by_gene.csv'),
-#
-#     'cell_metadata': os.path.join(ROOT_DIR, 'cell_metadata.csv'),
-#
-#     'detected_transcripts': os.path.join(ROOT_DIR, 'detected_transcripts.csv'),
-#
-#     'manifest': os.path.join(ROOT_DIR, 'images', 'manifest.json'),
-# }
-# \\iMacDimitris\Dropbox\Dropbox\MERFISHDRONC
 DROPBOX_URL = os.path.join('Z:\\', 'MERFISH_F_E')
-
 def get_config(slice_id, region_id):
     out = {
         'cell_by_gene': os.path.join(DROPBOX_URL, slice_id, region_id, 'cell_by_gene.csv'),
@@ -29,12 +14,9 @@ def get_config(slice_id, region_id):
         'manifest': os.path.join(DROPBOX_URL, slice_id, region_id, 'images', 'manifest.json'),
         'cell_boundaries_dir': os.path.join(DROPBOX_URL, slice_id, region_id, 'cell_boundaries'),
         'clip_poly': _clip_poly[slice_id][region_id],
+        'rotation': _rotation[slice_id][region_id],
     }
     return out
-
-
-def url_join(host, version, *additional_path):
-    return posixpath.join(host, posixpath.join(version, *additional_path))
 
 
 # only spots within this poly will be plotted. Use empty array if you do not want any clipping to be applied
@@ -55,3 +37,14 @@ _clip_poly['MsBrain_Eg5_VS6_JH_V6_05-16-2021']['region_0'] = [(25493, 20300), (2
 _clip_poly['MsBrain_Eg5_VS6_JH_V6_05-16-2021']['region_1'] = [(24674, 16221), (25968, 26958), (53383, 25511), (54221, 15535)]
 
 
+_rotation = defaultdict(dict)
+_rotation["MsBrain_Eg1_VS6_JH_V6_05-02-2021"]["region_0"] = 9,
+_rotation["MsBrain_Eg1_VS6_JH_V6_05-02-2021"]["region_1"] = 11,
+_rotation["MsBrain_Eg2_VS6_V11_JH_05-02-2021"]["region_0"] = -39,
+_rotation["MsBrain_Eg2_VS6_V11_JH_05-02-2021"]["region_1"] = -42,
+_rotation["MsBrain_Eg3_VS6_JH_V6_05-01-2021"]["region_0"] = 75,
+_rotation["MsBrain_Eg3_VS6_JH_V6_05-01-2021"]["region_1"] = 79,
+_rotation['MsBrain_EG4_VS6library_V6_LH_04-14-21']['region_0'] = 0,
+_rotation['MsBrain_EG4_VS6library_V6_LH_04-14-21']['region_1'] = 0,
+_rotation['MsBrain_Eg5_VS6_JH_V6_05-16-2021']['region_0'] = 0,
+_rotation['MsBrain_Eg5_VS6_JH_V6_05-16-2021']['region_1'] = 0,
