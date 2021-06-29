@@ -44,8 +44,9 @@ def clip_data(df, cfg):
         logger.info('Found clipping poly. Keeping data inside %s' % cfg['clip_poly'])
         coords = cfg['clip_poly']
         logger.info('Rotating the clipping polygon by %d degrees' % cfg['rotation'][0])
-        rotate_data(np.array(coords), cfg)
-        poly = Polygon(coords)
+        coords_rot = rotate_data(np.array(coords), cfg).astype(np.int32)
+        logger.info('Coords of the rotated polygon are %s ' % coords_rot.tolist())
+        poly = Polygon(coords_rot)
 
         s = GeoSeries(map(Point, zip(df.x.values, df.y.values)))
         mask = s.within(poly).values
@@ -96,7 +97,7 @@ def run(slice_id, region_id):
     rot = rotate_data(geneData[['x', 'y']].values.copy(), cfg)
     geneData.x = rot[:, 0]
     geneData.y = rot[:, 1]
-    # geneData = clip_data(geneData, cfg)
+    geneData = clip_data(geneData, cfg)
     splitter_mb(geneData, os.path.join(out_path, 'geneData'), 99)
     logger.info('Gene data saved at: %s' % os.path.join(out_path, 'geneData'))
 
@@ -108,18 +109,17 @@ def run(slice_id, region_id):
 
 if __name__ == "__main__":
     slice_ids = [
-        "MsBrain_Eg1_VS6_JH_V6_05-02-2021",
-        "MsBrain_Eg2_VS6_V11_JH_05-02-2021",
+        # "MsBrain_Eg1_VS6_JH_V6_05-02-2021",
+        # "MsBrain_Eg2_VS6_V11_JH_05-02-2021",
         "MsBrain_Eg3_VS6_JH_V6_05-01-2021",  # missing file region_1\\images\\manifest.json
-        "MsBrain_EG4_VS6library_V6_LH_04-14-21", # missing file region_1\\images\\manifest.json
-        "MsBrain_Eg5_VS6_JH_V6_05-16-2021"
+        # "MsBrain_EG4_VS6library_V6_LH_04-14-21", # missing file region_1\\images\\manifest.json
+        # "MsBrain_Eg5_VS6_JH_V6_05-16-2021"
         ]
     region_ids = ['region_0', 'region_1']
 
     for slice_id in slice_ids:
-        logger.info('Started slice %s' % slice_id)
         for region_id in region_ids:
-            logger.info("Started region %s" % region_id)
+            logger.info("\n Started slice %s, region %s" % (slice_id, region_id))
             try:
                 run(slice_id, region_id)
             except KeyError as e:
