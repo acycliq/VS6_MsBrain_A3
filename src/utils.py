@@ -8,6 +8,8 @@ import credentials
 from contextlib import closing # this will correctly close the request
 import io
 import math
+import cv2
+import pyvips
 # import dropbox
 import logging
 import src.config as config
@@ -64,57 +66,80 @@ def splitter_mb(df, dir_path, mb_size):
     handle_out.close()
 
 
-def transformation(cgf):
+def dapi_dims(cfg):
+    dapi = pyvips.Image.new_from_file(cfg['dapi_tif'], access='sequential')
+    img = {'width': dapi.width,
+           'height': dapi.height}
+    return img
+
+
+def transformation(cfg):
     # Micron to pixel transformation
 
     # settings = dropbox_streamer(cgf['manifest'])
 
-    with open(cgf['manifest']) as f:
-        settings = json.load(f)
+    um_to_px = np.genfromtxt(cfg['micron_to_mosaic_pixel_transform'], delimiter=' ')
+    assert um_to_px.shape == (3,3), 'The file %s should contain a space delimited 3-by-3 array' % cfg['micron_to_mosaic_pixel_transform']
+    a = um_to_px[0, 0]
+    b = um_to_px[0, 2]
+    c = um_to_px[1, 1]
+    d = um_to_px[1, 2]
+
+    img = dapi_dims(cfg)
 
     # bounding box in microns
-    bbox = {'x0': settings['bbox_microns'][0],
-            'x1': settings['bbox_microns'][2],
-            'y0': settings['bbox_microns'][1],
-            'y1': settings['bbox_microns'][3]}
+    bbox = {}
+    bbox['x0'] = -1 * b/a
+    bbox['x1'] = img['width']/a + bbox['x0']
+    bbox['y0'] = -1 * d/c
+    bbox['y1'] = img['height']/a + bbox['y0']
 
-    # image width and height in pixels
-    img = {'width': settings['mosaic_width_pixels'],
-           'height': settings['mosaic_height_pixels']}
-
-    # Affine transformation: a set of coefficients a, b, c, d for transforming
-    # a point of a form (x, y) into (a*x + b, c*y + d)
-    a = img['width'] / (bbox['x1'] - bbox['x0'])
-    b = -1 * img['width'] / (bbox['x1'] - bbox['x0']) * bbox['x0']
-    c = img['height'] / (bbox['y1'] - bbox['y0'])
-    d = -1 * img['height'] / (bbox['y1'] - bbox['y0']) * bbox['y0']
+    # with open(cfg['manifest']) as f:
+    #     settings = json.load(f)
+    #
+    # # bounding box in microns
+    # bbox = {'x0': settings['bbox_microns'][0],
+    #         'x1': settings['bbox_microns'][2],
+    #         'y0': settings['bbox_microns'][1],
+    #         'y1': settings['bbox_microns'][3]}
+    #
+    # # image width and height in pixels
+    # img = {'width': settings['mosaic_width_pixels'],
+    #        'height': settings['mosaic_height_pixels']}
+    #
+    # # Affine transformation: a set of coefficients a, b, c, d for transforming
+    # # a point of a form (x, y) into (a*x + b, c*y + d)
+    # a0 = img['width'] / (bbox['x1'] - bbox['x0'])
+    # b0 = -1 * img['width'] / (bbox['x1'] - bbox['x0']) * bbox['x0']
+    # c0 = img['height'] / (bbox['y1'] - bbox['y0'])
+    # d0 = -1 * img['height'] / (bbox['y1'] - bbox['y0']) * bbox['y0']
 
     tx = lambda x: a * x + b
     ty = lambda y: c * y + d
     return tx, ty, img, bbox
 
 
-def dropbox_streamer(yourpath):
-    _, file_extension = os.path.splitext('/path/to/somefile.ext')
-    token = credentials.DROPBOX_TOKEN
-    dbx = dropbox.Dropbox(token)
-
-    # Relevant streamer
-    def stream_dropbox_file(path):
-        _, res = dbx.files_download(path)
-        with closing(res) as result:
-            byte_data = result.content
-            return io.BytesIO(byte_data)
-
-    # Usage
-    file_stream = stream_dropbox_file(yourpath)
-    if file_extension == '/csv':
-        out = pd.read_csv(file_stream)
-    elif file_extension == '/tsv':
-        out = pd.read_csv(file_stream, sep='\t')
-    else:
-        out = json.load(file_stream)
-    return out
+# def dropbox_streamer(yourpath):
+#     _, file_extension = os.path.splitext('/path/to/somefile.ext')
+#     token = credentials.DROPBOX_TOKEN
+#     dbx = dropbox.Dropbox(token)
+#
+#     # Relevant streamer
+#     def stream_dropbox_file(path):
+#         _, res = dbx.files_download(path)
+#         with closing(res) as result:
+#             byte_data = result.content
+#             return io.BytesIO(byte_data)
+#
+#     # Usage
+#     file_stream = stream_dropbox_file(yourpath)
+#     if file_extension == '/csv':
+#         out = pd.read_csv(file_stream)
+#     elif file_extension == '/tsv':
+#         out = pd.read_csv(file_stream, sep='\t')
+#     else:
+#         out = json.load(file_stream)
+#     return out
 
 
 def get_bbox(w, h):
@@ -157,10 +182,10 @@ def rotate_data(points, cgf):
     """
     theta_deg = cgf['rotation'][0]
     theta_rad = math.radians(theta_deg)
-    with open(cgf['manifest']) as f:
-        settings = json.load(f)
-    w = settings['mosaic_width_pixels']
-    h = settings['mosaic_height_pixels']
+
+    img = dapi_dims(cgf)
+    w = img['width']
+    h = img['height']
 
     # points = data[['x', 'y']].values
 

@@ -63,8 +63,9 @@ def get_gene_data(cfg):
     spots_path = cfg['detected_transcripts']
     chunks = pd.read_csv(spots_path, chunksize=100000)
     data = pd.concat(chunks)
-    # data = dropbox_streamer(spots_path)
-    data_z3 = data[data.global_z == 3]
+
+    # data_z3 = data[data.global_z == 3]
+    data_z3 = data
     [unique_gene_names, gene_id, counts_per_gene] = np.unique(data_z3.gene.values, return_inverse=True,
                                                               return_counts=True)
 
@@ -96,8 +97,8 @@ def run(slice_id, region_id):
     geneData = get_gene_data(cfg)
     logger.info('Rotating the transcript data by %d degrees' % cfg['rotation'][0])
     rot = rotate_data(geneData[['x', 'y']].values.copy(), cfg)
-    geneData.x = rot[:, 0]
-    geneData.y = rot[:, 1]
+    geneData.x = rot[:, 0].astype(np.int32)
+    geneData.y = rot[:, 1].astype(np.int32)
     geneData = clip_data(geneData, cfg)
     splitter_mb(geneData, os.path.join(out_path, 'geneData'), 99)
     logger.info('Gene data saved at: %s' % os.path.join(out_path, 'geneData'))
@@ -121,11 +122,11 @@ if __name__ == "__main__":
     for slice_id in slice_ids:
         for region_id in region_ids:
             logger.info("\n Started slice %s, region %s" % (slice_id, region_id))
-            # try:
-            run(slice_id, region_id)
-            # except KeyError as e:
-            #     logger.info('KeyError %s' % str(e))
-            # except FileNotFoundError as e:
-            #     logger.info('FileNotFoundError %s' % str(e))
+            try:
+                run(slice_id, region_id)
+            except KeyError as e:
+                logger.info('KeyError %s' % str(e))
+            except FileNotFoundError as e:
+                logger.info('FileNotFoundError %s' % str(e))
 
     logger.info('Done!')

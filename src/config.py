@@ -11,7 +11,9 @@ def get_config(slice_id, region_id):
         'cell_by_gene': os.path.join(DROPBOX_URL, slice_id, region_id, 'cell_by_gene.csv'),
         'cell_metadata': os.path.join(DROPBOX_URL, slice_id, region_id, 'cell_metadata.csv'),
         'detected_transcripts': os.path.join(DROPBOX_URL, slice_id, region_id, 'detected_transcripts.csv'),
-        'manifest': os.path.join(DROPBOX_URL, slice_id, region_id, 'images', 'manifest.json'),
+        # 'manifest': os.path.join(DROPBOX_URL, slice_id, region_id, 'images', 'manifest.json'),
+        'micron_to_mosaic_pixel_transform': os.path.join(DROPBOX_URL, slice_id, region_id, 'images', 'micron_to_mosaic_pixel_transform.csv'),
+        'dapi_tif': os.path.join(DROPBOX_URL, slice_id, region_id, 'images', 'mosaic_DAPI_z3.tif'),
         'cell_boundaries_dir': os.path.join(DROPBOX_URL, slice_id, region_id, 'cell_boundaries'),
         'clip_poly': _clip_poly[slice_id][region_id],
         'rotation': _rotation[slice_id][region_id],
@@ -28,10 +30,14 @@ _clip_poly['MsBrain_Eg2_VS6_V11_JH_05-02-2021']['region_0'] = [(25740, 24217), (
 _clip_poly['MsBrain_Eg2_VS6_V11_JH_05-02-2021']['region_1'] = [(39595, 33354), (48856, 18552), (18254, -1342), (10335, 9731)]
 
 _clip_poly['MsBrain_Eg3_VS6_JH_V6_05-01-2021']['region_0'] = [(25255, 29712), (27483, 35489), (27648, 40028), (27731, 41596), (26245, 44072), (24430, 47043), (23192, 47951), (23934, 55094), (32353, 66356), (41431, 44898), (38708, 23109), (30950, 26410), (25750, 29712)]
-_clip_poly['MsBrain_Eg3_VS6_JH_V6_05-01-2021']['region_1'] = []
+
+# just guessing the clipping poly...
+_clip_poly['MsBrain_Eg3_VS6_JH_V6_05-01-2021']['region_1'] = [(25255, 29712), (27483, 35489), (27648, 40028), (27731, 41596), (26245, 44072), (24430, 47043), (23192, 47951), (23934, 55094), (32353, 66356), (41431, 44898), (38708, 23109), (30950, 26410), (25750, 29712)]
 
 _clip_poly['MsBrain_EG4_VS6library_V6_LH_04-14-21']['region_0'] = [(35367, 40796), (35485, 47248), (54566, 47563), (54566, 41072)]
-_clip_poly['MsBrain_EG4_VS6library_V6_LH_04-14-21']['region_1'] = []
+
+# just guessing the clipping poly...
+_clip_poly['MsBrain_EG4_VS6library_V6_LH_04-14-21']['region_1'] = [(35367, 40796), (35485, 47248), (54566, 47563), (54566, 41072)]
 
 _clip_poly['MsBrain_Eg5_VS6_JH_V6_05-16-2021']['region_0'] = [(25493, 20300), (25650, 31158), (54841, 32496), (54943, 18648)]
 _clip_poly['MsBrain_Eg5_VS6_JH_V6_05-16-2021']['region_1'] = [(24674, 16221), (25968, 26958), (53383, 25511), (54221, 15535)]
