@@ -9,6 +9,8 @@ import numpy as np
 import pandas as pd
 from natsort import natsorted
 from multiprocessing import Pool
+# from multiprocessing.dummy import Pool as ThreadPool
+from multiprocessing import cpu_count
 from functools import partial
 from itertools import chain
 import src.config as config
@@ -130,7 +132,8 @@ def cell_boundaries_px_par(cfg):
     hfd5_files = [f for f in listdir(hdf5_dir) if isfile(join(hdf5_dir, f)) and os.path.splitext(f)[1] == '.hdf5']
 
     hfd5_files = natsorted(hfd5_files)
-    pool = Pool()
+    n = max(1, cpu_count() - 1)
+    pool = Pool(n)
     _res = pool.map(partial(cell_boundaries_px_helper, cfg), hfd5_files)
     pool.close()
     pool.join()
