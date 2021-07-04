@@ -43,10 +43,11 @@ def clip_data(df, cfg):
     if cfg['clip_poly']:
         logger.info('Found clipping poly. Keeping data inside %s' % cfg['clip_poly'])
         coords = cfg['clip_poly']
-        logger.info('Rotating the clipping polygon by %d degrees' % cfg['rotation'][0])
-        coords_rot = rotate_data(np.array(coords), cfg).astype(np.int32)
-        logger.info('Coords of the rotated polygon are %s ' % coords_rot.tolist())
-        poly = Polygon(coords_rot)
+        # logger.info('Rotating the clipping polygon by %d degrees' % cfg['rotation'][0])
+        # coords_rot = rotate_data(np.array(coords), cfg).astype(np.int32)
+        # logger.info('Coords of the rotated polygon are %s ' % coords_rot.tolist())
+        # poly = Polygon(coords_rot)
+        poly = Polygon(coords)
 
         s = GeoSeries(map(Point, zip(df.x.values, df.y.values)))
         mask = s.within(poly).values
@@ -94,12 +95,20 @@ def run(slice_id, region_id):
     cfg = config.get_config(slice_id=slice_id, region_id=region_id)
     out_path = os.path.join(slice_id, region_id)
 
+    # 1. First fetch the data
     geneData = get_gene_data(cfg)
+
+    # 2. Keep only spots inside the ROI
+    logger.info('Keeping only the ROI spots')
+    geneData = clip_data(geneData, cfg)
+
+    # 3. Rotate the spots
     logger.info('Rotating the transcript data by %d degrees' % cfg['rotation'][0])
     rot = rotate_data(geneData[['x', 'y']].values.copy(), cfg)
     geneData.x = rot[:, 0].astype(np.int32)
     geneData.y = rot[:, 1].astype(np.int32)
-    geneData = clip_data(geneData, cfg)
+
+    # 4. Save the spots to the disk
     splitter_mb(geneData, os.path.join(out_path, 'geneData'), 99)
     logger.info('Gene data saved at: %s' % os.path.join(out_path, 'geneData'))
 
