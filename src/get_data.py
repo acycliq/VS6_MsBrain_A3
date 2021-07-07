@@ -75,8 +75,8 @@ def get_gene_data(cfg):
     data_z3['Gene_id'] = gene_id
     data_z3 = data_z3.sort_values(by=['global_x_px', 'global_y_px'])
 
-    data_z3 = data_z3[['gene', 'global_x_px', 'global_y_px', 'Gene_id']].rename(
-        columns={'gene': "Gene", 'global_x_px': "x", 'global_y_px': "y"})
+    data_z3 = data_z3[['gene', 'global_x_px', 'global_y_px', 'global_z', 'Gene_id']].rename(
+        columns={'gene': "Gene", 'global_x_px': "x", 'global_y_px': "y", 'global_z': 'z_stack'})
 
 
     data_z3['neighbour'] = np.ones(len(gene_id)).astype(np.int32)
