@@ -11,12 +11,13 @@ import src.config as config
 import logging
 from geopandas import GeoSeries
 from shapely.geometry import Point, Polygon
+import numba
 from multiprocessing import Pool
 import credentials
 import json
 import math
 from src.utils import transformation
-from src.utils import splitter_mb
+from src.utils import splitter_mb, save_df
 from src.cellBorders import cell_boundaries_px, cell_boundaries_px_par
 import src.cellBorders as cellBorders
 from src.utils import rotate_data
@@ -33,7 +34,7 @@ logging.basicConfig(
 )
 
 
-def clip_data(df, cfg):
+def clip_data_OLD(df, cfg):
     """
     Keeps spots inside the area defined by predetermined polygon only
     :param df:
@@ -54,6 +55,81 @@ def clip_data(df, cfg):
         return df[mask]
     else:
         return df
+
+
+def clip_data(df, cfg):
+    """
+    Keeps spots inside the area defined by predetermined polygon only
+    :param df:
+    :param cfg:
+    :return:
+    """
+    if cfg['clip_poly']:
+        logger.info('Found clipping poly. Keeping data inside %s' % cfg['clip_poly'])
+        coords = cfg['clip_poly']
+        if not coords[0] == coords[-1]:
+            logger.info('Closing the polygon')
+            coords.append(coords[0])
+
+        # logger.info('Rotating the clipping polygon by %d degrees' % cfg['rotation'][0])
+        # coords_rot = rotate_data(np.array(coords), cfg).astype(np.int32)
+        # logger.info('Coords of the rotated polygon are %s ' % coords_rot.tolist())
+        # poly = Polygon(coords_rot)
+        # poly = Polygon(coords)
+
+        points = df[['x', 'y']].values
+        poly = np.array(coords)
+        mask = is_inside_sm_parallel(points, poly)
+        logger.info('Collected %d points inside ROI' % mask.sum())
+        return df[mask]
+    else:
+        return df
+
+
+@numba.jit(nopython=True)
+def is_inside_sm(polygon, point):
+    # From https://github.com/sasamil/PointInPolygon_Py/blob/master/pointInside.py
+    # and
+    # https://github.com/sasamil/PointInPolygon_Py/blob/master/pointInside.py
+    length = len(polygon)-1
+    dy2 = point[1] - polygon[0][1]
+    intersections = 0
+    ii = 0
+    jj = 1
+
+    while ii<length:
+        dy  = dy2
+        dy2 = point[1] - polygon[jj][1]
+
+        # consider only lines which are not completely above/bellow/right from the point
+        if dy*dy2 <= 0.0 and (point[0] >= polygon[ii][0] or point[0] >= polygon[jj][0]):
+
+            # non-horizontal line
+            if dy<0 or dy2<0:
+                F = dy*(polygon[jj][0] - polygon[ii][0])/(dy-dy2) + polygon[ii][0]
+
+                if point[0] > F: # if line is left from the point - the ray moving towards left, will intersect it
+                    intersections += 1
+                elif point[0] == F: # point on line
+                    return 2
+
+            # point on upper peak (dy2=dx2=0) or horizontal line (dy=dy2=0 and dx*dx2<=0)
+            elif dy2==0 and (point[0]==polygon[jj][0] or (dy==0 and (point[0]-polygon[ii][0])*(point[0]-polygon[jj][0])<=0)):
+                return 2
+
+        ii = jj
+        jj += 1
+
+    #print 'intersections =', intersections
+    return intersections & 1
+
+@numba.njit(parallel=True)
+def is_inside_sm_parallel(points, polygon):
+    ln = len(points)
+    D = np.empty(ln, dtype=numba.boolean)
+    for i in numba.prange(ln):
+        D[i] = is_inside_sm(polygon,points[i])
+    return D
 
 
 def get_gene_data(cfg):
@@ -93,7 +169,7 @@ def get_gene_data(cfg):
 
 def run(slice_id, region_id):
     cfg = config.get_config(slice_id=slice_id, region_id=region_id)
-    out_path = os.path.join(slice_id, region_id)
+    out_path = os.path.join('D:\\rotated_dapi_map_tiles', slice_id, region_id)
 
     # 1. First fetch the data
     geneData = get_gene_data(cfg)
@@ -109,13 +185,14 @@ def run(slice_id, region_id):
     geneData.y = rot[:, 1].astype(np.int32)
 
     # 4. Save the spots to the disk
-    splitter_mb(geneData, os.path.join(out_path, 'geneData'), 99)
+    # splitter_mb(geneData, os.path.join(out_path, 'geneData'), 99)
+    save_df(geneData, os.path.join(out_path, 'geneData'))
     logger.info('Gene data saved at: %s' % os.path.join(out_path, 'geneData'))
 
-    px_boundaries = cell_boundaries_px_par(cfg)
-    boundaries = px_boundaries[['cell_label', 'cell_boundaries']]
-    cellBorders.write_tsv(boundaries, os.path.join(out_path))
-    logger.info('cell data saved at: %s' % os.path.join(out_path))
+    # px_boundaries = cell_boundaries_px_par(cfg)
+    # boundaries = px_boundaries[['cell_label', 'cell_boundaries']]
+    # cellBorders.write_tsv(boundaries, os.path.join(out_path))
+    # logger.info('cell data saved at: %s' % os.path.join(out_path))
 
 
 if __name__ == "__main__":
