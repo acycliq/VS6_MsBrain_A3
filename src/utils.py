@@ -8,6 +8,8 @@ import credentials
 from contextlib import closing # this will correctly close the request
 import io
 import math
+from multiprocessing import Pool, cpu_count, freeze_support
+from functools import partial
 import cv2
 import pyvips
 # import dropbox
@@ -64,6 +66,37 @@ def splitter_mb(df, dir_path, mb_size):
     # print(str(file_out) + " file size = \t" + str(size))
     logger.info('saved %s with file size %4.3f MB' % (file_out, size / (1024 * 1024)))
     handle_out.close()
+
+
+def save_df(df, dir_path):
+    freeze_support()
+
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+    else:
+        files = glob.glob(dir_path + '/*.*')
+        for f in files:
+            os.remove(f)
+
+    # Get number of cores and split labels across that many workers
+    processes = cpu_count()
+    logger.info(f'Using {processes} processes')
+
+    # Chunk up the labels across the processes
+    chunks = np.array_split(df, processes)
+
+    # Map the labels across the processes
+    with Pool(processes=processes) as pool:
+        result = pool.map(partial(worker, OUT_DIR=dir_path), enumerate(chunks))
+
+
+def worker(arg_in, OUT_DIR):
+    n = arg_in[0]
+    df = arg_in[1]
+    filename = os.path.basename(OUT_DIR).split('.')[0]
+    file = os.path.join(OUT_DIR, filename + '_%d.%s' % (n, 'tsv'))
+    df.to_csv(file, index=False, sep='\t')
+    # logger.info('saved %s ' % file)
 
 
 def dapi_dims(cfg):
@@ -199,7 +232,8 @@ def rotate_data(points, cgf):
     offset_x, offset_y = bbox_rot(w, h, R)
 
     # 3 rotate the datapoints
-    rot = np.array([R.dot(d).tolist() for d in points])
+    rot = np.dot(points, R.T)
+    logger.info('rotating finished')
     rot = rot + np.array([offset_x, offset_y])
     return rot
 
