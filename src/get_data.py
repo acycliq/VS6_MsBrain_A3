@@ -3,7 +3,7 @@ Convenience functions only to collect the data needed for the draft viewer
 It reads the vizgen raw data and creates geneData, cellData and cellBoundaries needed
 to visualise the data. It DOES NOT DO ANY CELLTYPING
 """
-import sys
+
 import os
 import numpy as np
 import pandas as pd
@@ -12,10 +12,6 @@ import logging
 from geopandas import GeoSeries
 from shapely.geometry import Point, Polygon
 import numba
-from multiprocessing import Pool
-import credentials
-import json
-import math
 from src.utils import transformation
 from src.utils import splitter_mb, save_df
 from src.cellBorders import cell_boundaries_px, cell_boundaries_px_par
@@ -34,27 +30,27 @@ logging.basicConfig(
 )
 
 
-def clip_data_OLD(df, cfg):
-    """
-    Keeps spots inside the area defined by predetermined polygon only
-    :param df:
-    :param cfg:
-    :return:
-    """
-    if cfg['clip_poly']:
-        logger.info('Found clipping poly. Keeping data inside %s' % cfg['clip_poly'])
-        coords = cfg['clip_poly']
-        # logger.info('Rotating the clipping polygon by %d degrees' % cfg['rotation'][0])
-        # coords_rot = rotate_data(np.array(coords), cfg).astype(np.int32)
-        # logger.info('Coords of the rotated polygon are %s ' % coords_rot.tolist())
-        # poly = Polygon(coords_rot)
-        poly = Polygon(coords)
-
-        s = GeoSeries(map(Point, zip(df.x.values, df.y.values)))
-        mask = s.within(poly).values
-        return df[mask]
-    else:
-        return df
+# def clip_data(df, cfg):
+#     """
+#     Keeps spots inside the area defined by predetermined polygon only
+#     :param df:
+#     :param cfg:
+#     :return:
+#     """
+#     if cfg['clip_poly']:
+#         logger.info('Found clipping poly. Keeping data inside %s' % cfg['clip_poly'])
+#         coords = cfg['clip_poly']
+#         # logger.info('Rotating the clipping polygon by %d degrees' % cfg['rotation'][0])
+#         # coords_rot = rotate_data(np.array(coords), cfg).astype(np.int32)
+#         # logger.info('Coords of the rotated polygon are %s ' % coords_rot.tolist())
+#         # poly = Polygon(coords_rot)
+#         poly = Polygon(coords)
+#
+#         s = GeoSeries(map(Point, zip(df.x.values, df.y.values)))
+#         mask = s.within(poly).values
+#         return df[mask]
+#     else:
+#         return df
 
 
 def clip_data(df, cfg):
@@ -70,12 +66,6 @@ def clip_data(df, cfg):
         if not coords[0] == coords[-1]:
             logger.info('Closing the polygon')
             coords.append(coords[0])
-
-        # logger.info('Rotating the clipping polygon by %d degrees' % cfg['rotation'][0])
-        # coords_rot = rotate_data(np.array(coords), cfg).astype(np.int32)
-        # logger.info('Coords of the rotated polygon are %s ' % coords_rot.tolist())
-        # poly = Polygon(coords_rot)
-        # poly = Polygon(coords)
 
         points = df[['x', 'y']].values
         poly = np.array(coords)
@@ -133,7 +123,7 @@ def is_inside_sm_parallel(points, polygon):
 
 
 def get_gene_data(cfg):
-    # Transormation from micron to pixel coords
+    # Transformation from micron to pixel coords
     tx, ty, _, _ = transformation(cfg)
 
     # read the spots from the raw files
@@ -199,8 +189,8 @@ if __name__ == "__main__":
     slice_ids = [
         "MsBrain_Eg1_VS6_JH_V6_05-02-2021",
         "MsBrain_Eg2_VS6_V11_JH_05-02-2021",
-        "MsBrain_Eg3_VS6_JH_V6_05-01-2021",  # missing file region_1\\images\\manifest.json
-        "MsBrain_EG4_VS6library_V6_LH_04-14-21", # missing file region_1\\images\\manifest.json
+        "MsBrain_Eg3_VS6_JH_V6_05-01-2021",
+        "MsBrain_EG4_VS6library_V6_LH_04-14-21",
         "MsBrain_Eg5_VS6_JH_V6_05-16-2021"
         ]
     region_ids = ['region_0', 'region_1']
