@@ -113,6 +113,7 @@ def is_inside_sm(polygon, point):
     #print 'intersections =', intersections
     return intersections & 1
 
+
 @numba.njit(parallel=True)
 def is_inside_sm_parallel(points, polygon):
     ln = len(points)
