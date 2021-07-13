@@ -69,8 +69,6 @@ def splitter_mb(df, dir_path, mb_size):
 
 
 def save_df(df, dir_path):
-    freeze_support()
-
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
     else:
@@ -88,6 +86,27 @@ def save_df(df, dir_path):
     # Map the labels across the processes
     with Pool(processes=processes) as pool:
         result = pool.map(partial(worker, OUT_DIR=dir_path), enumerate(chunks))
+        pool.close()
+        pool.join()
+
+
+def save_df_simple(df, dir_path):
+    """
+    Simple convenience function to save a dataframe as a tsv.
+    It creates the containing folder if it doesnt exist
+    :param df:
+    :param dir_path:
+    :return:
+    """
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+    else:
+        files = glob.glob(dir_path + '/*.*')
+        for f in files:
+            os.remove(f)
+    filename = os.path.basename(dir_path).split('.')[0]
+    file_name = os.path.join(dir_path, filename + '.tsv')
+    df.to_csv(file_name, sep='\t', index=False)
 
 
 def worker(arg_in, OUT_DIR):
@@ -233,7 +252,7 @@ def rotate_data(points, cgf):
 
     # 3 rotate the datapoints
     rot = np.dot(points, R.T)
-    logger.info('rotating finished')
+    # logger.info('rotating finished')
     rot = rot + np.array([offset_x, offset_y])
     return rot
 

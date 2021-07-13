@@ -13,8 +13,8 @@ from geopandas import GeoSeries
 from shapely.geometry import Point, Polygon
 import numba
 from src.utils import transformation
-from src.utils import splitter_mb, save_df
-from src.cellBorders import cell_boundaries_px, cell_boundaries_px_par
+from src.utils import splitter_mb, save_df, save_df_simple
+from src.cellBorders import cell_boundaries_px_par
 import src.cellBorders as cellBorders
 from src.utils import rotate_data
 
@@ -178,15 +178,21 @@ def run(slice_id, region_id):
     save_df(geneData, os.path.join(out_path, 'geneData'))
     logger.info('Gene data saved at: %s' % os.path.join(out_path, 'geneData'))
 
-    # px_boundaries = cell_boundaries_px_par(cfg)
-    # boundaries = px_boundaries[['cell_label', 'cell_boundaries']]
-    # cellBorders.write_tsv(boundaries, os.path.join(out_path))
-    # logger.info('cell data saved at: %s' % os.path.join(out_path))
+    px_boundaries = cell_boundaries_px_par(cfg)
+
+    # make a dataframe with the cell centroids and cell area
+    cell_props = px_boundaries[['cell_key',	'cell_label', 'x', 'y',	'cell_area']]
+    save_df_simple(cell_props, os.path.join(out_path, 'cell_props'))
+
+    # make a dataframe with only the boundaries
+    boundaries = px_boundaries[['cell_label', 'cell_boundaries']]
+    save_df_simple(boundaries, os.path.join(out_path, 'cellBoundaries'))
+    logger.info('cell data saved at: %s' % os.path.join(out_path))
 
 
 if __name__ == "__main__":
     slice_ids = [
-        "MsBrain_Eg1_VS6_JH_V6_05-02-2021",
+        # "MsBrain_Eg1_VS6_JH_V6_05-02-2021",
         "MsBrain_Eg2_VS6_V11_JH_05-02-2021",
         "MsBrain_Eg3_VS6_JH_V6_05-01-2021",
         "MsBrain_EG4_VS6library_V6_LH_04-14-21",
