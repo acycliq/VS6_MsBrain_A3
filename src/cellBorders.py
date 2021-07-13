@@ -14,17 +14,12 @@ from multiprocessing import cpu_count
 from skimage.measure import regionprops
 from functools import partial
 from itertools import chain
-import src.config as config
 from src.utils import splitter_mb, transformation
-from src.utils import rotate_data, dapi_dims
+from src.utils import rotate_data
 from src.cellmap import get_mask
 import logging
 
 logger = logging.getLogger()
-# logging.basicConfig(
-#     level=logging.INFO,
-#     format="%(asctime)s:%(levelname)s:%(message)s"
-# )
 
 
 def write_boundaries_tsv(boundaries, target_dir):
@@ -74,7 +69,6 @@ def get_boundaries(fileName: str, cfg, zIndex:int=3):
     :param zIndex:
     :return:
     """
-    # target_hdf5 = os.path.join(config.ROOT_DIR, 'cell_boundaries', fileName)
     target_hdf5 = os.path.join(cfg['cell_boundaries_dir'], fileName)
     with h5py.File(target_hdf5, 'r') as data:
         cell_boundaries = []
@@ -99,31 +93,6 @@ def outline_min(arr: np.array) -> np.array:
     arr_min.append(arr_min[0])  # close the outline by appending the first point at the end
     return np.array(arr_min)
 
-
-# def cell_boundaries_px(cfg):
-#     """
-#     :return: returns a list of lists. Each sublist is the list of the x,y coords describing the cell boundaries
-#     """
-#     # hdf5_dir = os.path.join(config.ROOT_DIR, 'cell_boundaries')
-#     hdf5_dir = cfg['cell_boundaries_dir']
-#     # metadata_csv = config.DEFAULT['cell_metadata']
-#     # cellMetadata = pd.read_csv(metadata_csv).rename(columns={'Unnamed: 0': 'uid'})
-#
-#     hfd5_files = [f for f in listdir(hdf5_dir) if isfile(join(hdf5_dir, f)) and os.path.splitext(f)[1] == '.hdf5']
-#     boundaries = []
-#     keys = []
-#     for hdf5_file in natsorted(hfd5_files):
-#         logger.info('rotating all cell boundaries in %s by %d degrees' % (hdf5_file, cfg['rotation'][0]))
-#         fov_cells, fov_cell_keys = get_boundaries(hdf5_file, cfg)
-#         for fov_cell, fov_cell_key in zip(fov_cells, fov_cell_keys):
-#             fov_cell = rotate_data(fov_cell, cfg)
-#             boundaries.append(fov_cell)
-#             keys.append(fov_cell_key)
-#     out = pd.DataFrame({'cell_key': keys,
-#                         'cell_label': np.arange(1, len(boundaries) + 1).astype(np.int),
-#                         'cell_boundaries': boundaries})
-#     # out.to_csv('cell_boundaries.csv', index=False)
-#     return out
 
 def worker(cfg, hdf5_file):
     logger.info('rotating all cell boundaries in %s by %d degrees' % (hdf5_file, cfg['rotation'][0]))
@@ -155,16 +124,12 @@ def cell_boundaries_px_par(cfg):
     processes = cpu_count()
     logger.info('Using %d processes' % processes)
 
-    # Chunk up the hfd5 files across the processes
-    # chunks = np.array_split(hfd5_files, processes)
-
     # Map the labels across the processes
     with ThreadPool(processes=processes) as pool:
         # _res = pool.map(partial(cell_boundaries_px_helper, cfg), chunks)
         _res = pool.map(partial(worker, cfg), hfd5_files)
         pool.close()
         pool.join()
-
 
     # get the results in two lists
     keys = [d[0] for d in _res]
@@ -189,25 +154,6 @@ def cell_boundaries_px_par(cfg):
                         })
     # out.to_csv('cell_boundaries.csv', index=False)
     return out
-
-
-# def cell_boundaries_px_helper(cfg, hdf5_file):
-#     logger.info('rotating all cell boundaries in %s by %d degrees' % (hdf5_file, cfg['rotation'][0]))
-#     boundaries = []
-#     keys = []
-#     centroid_x = []
-#     centroid_y = []
-#     cell_area = []
-#     fov_cells, fov_cell_keys = get_boundaries(hdf5_file, cfg)
-#     for fov_cell, fov_cell_key in zip(fov_cells, fov_cell_keys):
-#         fov_cell = rotate_data(fov_cell, cfg).astype(np.int32)
-#         _x, _y, _area = get_props(fov_cell)
-#         centroid_x.append(_x)
-#         centroid_y.append(_y)
-#         cell_area.append(_area)
-#         boundaries.append(fov_cell.tolist())
-#         keys.append(fov_cell_key)
-#     return keys, boundaries, centroid_x, centroid_y, cell_area
 
 
 def get_props(poly):
