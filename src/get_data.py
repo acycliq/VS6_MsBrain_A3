@@ -243,11 +243,6 @@ if __name__ == "__main__":
     for slice_id in slice_ids:
         for region_id in region_ids:
             logger.info("\n Started slice %s, region %s" % (slice_id, region_id))
-            try:
-                run(slice_id, region_id)
-            except KeyError as e:
-                logger.info('KeyError %s' % str(e))
-            except FileNotFoundError as e:
-                logger.info('FileNotFoundError %s' % str(e))
+            run(slice_id, region_id)
 
     logger.info('Done!')
