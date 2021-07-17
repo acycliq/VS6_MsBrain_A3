@@ -5,18 +5,23 @@ from collections import defaultdict
 PROJECT_DIR = Path(os.path.dirname(os.path.realpath(__file__))).parent.absolute()
 print(PROJECT_DIR)
 
+# Location where the Vizgen raw data are kept
 DROPBOX_URL = os.path.join('Z:\\', 'MERFISH_F_E')
+
+# Root Location where the flatfiles from the preprocessing step will be saved (geneData, cellData etc...)
+SAVE_TO =  os.path.join('D:\\', 'rotated_dapi_map_tiles')
+
 def get_config(slice_id, region_id):
     out = {
         'cell_by_gene': os.path.join(DROPBOX_URL, slice_id, region_id, 'cell_by_gene.csv'),
         'cell_metadata': os.path.join(DROPBOX_URL, slice_id, region_id, 'cell_metadata.csv'),
         'detected_transcripts': os.path.join(DROPBOX_URL, slice_id, region_id, 'detected_transcripts.csv'),
-        # 'manifest': os.path.join(DROPBOX_URL, slice_id, region_id, 'images', 'manifest.json'),
         'micron_to_mosaic_pixel_transform': os.path.join(DROPBOX_URL, slice_id, region_id, 'images', 'micron_to_mosaic_pixel_transform.csv'),
         'dapi_tif': os.path.join(DROPBOX_URL, slice_id, region_id, 'images', 'mosaic_DAPI_z3.tif'),
         'cell_boundaries_dir': os.path.join(DROPBOX_URL, slice_id, region_id, 'cell_boundaries'),
         'clip_poly': _clip_poly[slice_id][region_id],
         'rotation': _rotation[slice_id][region_id],
+        'target_dir': os.path.join(SAVE_TO, slice_id, region_id),
     }
     return out
 
