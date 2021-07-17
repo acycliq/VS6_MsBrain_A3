@@ -194,7 +194,6 @@ def roi_spots(cfg, out_path):
     logger.info('Gene data saved at: %s' % os.path.join(out_path, 'geneData'))
 
 
-
 def cell_boundaries(cfg, out_path):
     """
     Collects the rotated outer ring of the cells boundaries. It get all cells not only those
@@ -227,7 +226,6 @@ def run(slice_id, region_id):
 
     # 2. get all the cell boundaries (rotated)
     # cell_boundaries(cfg, out_path)
-
 
 
 if __name__ == "__main__":
