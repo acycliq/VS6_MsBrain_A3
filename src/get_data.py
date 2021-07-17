@@ -167,7 +167,7 @@ def get_gene_data(cfg):
     return data_z3
 
 
-def roi_spots(cfg, out_path):
+def roi_spots(cfg):
     """
     Collects the spots inside the ROI and then rotates them
     :param cfg:
@@ -190,11 +190,11 @@ def roi_spots(cfg, out_path):
 
     # 4. Save the spots to the disk
     # splitter_mb(geneData, os.path.join(out_path, 'geneData'), 99)
-    save_df(geneData, os.path.join(out_path, 'geneData'))
-    logger.info('Gene data saved at: %s' % os.path.join(out_path, 'geneData'))
+    save_df(geneData, os.path.join(cfg['target_dir'], 'geneData'))
+    logger.info('Gene data saved at: %s' % os.path.join(cfg['target_dir'], 'geneData'))
 
 
-def cell_boundaries(cfg, out_path):
+def cell_boundaries(cfg):
     """
     Collects the rotated outer ring of the cells boundaries. It get all cells not only those
     within the ROI
@@ -208,12 +208,12 @@ def cell_boundaries(cfg, out_path):
 
     # make a dataframe with the cell centroids and cell area
     cell_props = px_boundaries[['cell_key',	'cell_label', 'x', 'y',	'cell_area']]
-    save_df_simple(cell_props, os.path.join(out_path, 'cell_props'))
+    save_df_simple(cell_props, os.path.join(cfg['target_dir'], 'cell_props'))
 
-    # make a dataframe with only the boundaries
-    boundaries = px_boundaries[['cell_label', 'cell_boundaries']]
-    save_df_simple(boundaries, os.path.join(out_path, 'cellBoundaries'))
-    logger.info('cell data saved at: %s' % os.path.join(out_path))
+    # # make a dataframe with only the boundaries
+    # boundaries = px_boundaries[['cell_label', 'cell_boundaries']]
+    # save_df_simple(boundaries, os.path.join(cfg['target_dir'], 'cellBoundaries'))
+    # logger.info('cell data saved at: %s' % os.path.join(cfg['target_dir']))
 
 
 
@@ -222,10 +222,10 @@ def run(slice_id, region_id):
     out_path = os.path.join('D:\\rotated_dapi_map_tiles', slice_id, region_id)
 
     # 1. get the ROI spots (rotated)
-    roi_spots(cfg, out_path)
+    roi_spots(cfg)
 
     # 2. get all the cell boundaries (rotated)
-    # cell_boundaries(cfg, out_path)
+    cell_boundaries(cfg)
 
 
 if __name__ == "__main__":
