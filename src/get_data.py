@@ -219,7 +219,6 @@ def cell_boundaries(cfg):
 
 def run(slice_id, region_id):
     cfg = config.get_config(slice_id=slice_id, region_id=region_id)
-    out_path = os.path.join('D:\\rotated_dapi_map_tiles', slice_id, region_id)
 
     # 1. get the ROI spots (rotated)
     roi_spots(cfg)
