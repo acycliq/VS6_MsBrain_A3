@@ -134,16 +134,18 @@ def get_gene_data(cfg):
 
     # data_z3 = data[data.global_z == 3]
     data_z3 = data
+    logger.info('Getting the unique gene ids')
     [unique_gene_names, gene_id, counts_per_gene] = np.unique(data_z3.gene.values, return_inverse=True,
                                                               return_counts=True)
+    logger.info('ok. done')
 
     data_z3 = data_z3.assign(global_x_px=tx(data_z3.global_x.values).astype(np.int32))
     data_z3 = data_z3.assign(global_y_px=ty(data_z3.global_y.values).astype(np.int32))
     data_z3['Gene_id'] = gene_id
     data_z3 = data_z3.sort_values(by=['global_x_px', 'global_y_px'])
 
-    data_z3 = data_z3[['gene', 'global_x_px', 'global_y_px', 'global_z', 'Gene_id']].rename(
-        columns={'gene': "Gene", 'global_x_px': "x", 'global_y_px': "y", 'global_z': 'z_stack'})
+    data_z3 = data_z3[['gene', 'global_x_px', 'global_y_px', 'global_z', 'Gene_id', 'fov']].rename(
+        columns={'gene': "Gene", 'global_x_px': "x", 'global_y_px': "y", 'global_z': 'z'})
 
     data_z3['neighbour'] = np.ones(len(gene_id)).astype(np.int32)
     data_z3['neighbour_array'] = [[1] for i in range(len(gene_id))]
@@ -152,14 +154,26 @@ def get_gene_data(cfg):
     # data_z3 = data_z3.drop([['Unnamed: 0', 'Unnamed: 0.1']], axis=1)
 
     logger.info('Data size: %d, %d' % (data_z3.shape[0], data_z3.shape[1]))
+
+    logger.info('Sorting by x, y')
     data_z3 = data_z3.sort_values(by=['x', 'y'])
+    logger.info('ok. done')
     # splitter_mb(data_z3, 'geneData', 99)
+    data_z3 = data_z3.astype({'x': np.int32,
+                              'y': np.int32,
+                              'z': np.int32,
+                              'fov': np.uint32,
+                              'neighbour': np.int32})
     return data_z3
 
 
-def run(slice_id, region_id):
-    cfg = config.get_config(slice_id=slice_id, region_id=region_id)
-    out_path = os.path.join('D:\\rotated_dapi_map_tiles', slice_id, region_id)
+def roi_spots(cfg, out_path):
+    """
+    Collects the spots inside the ROI and then rotates them
+    :param cfg:
+    :param out_path:
+    :return:
+    """
 
     # 1. First fetch the data
     geneData = get_gene_data(cfg)
@@ -179,6 +193,18 @@ def run(slice_id, region_id):
     save_df(geneData, os.path.join(out_path, 'geneData'))
     logger.info('Gene data saved at: %s' % os.path.join(out_path, 'geneData'))
 
+
+
+def cell_boundaries(cfg, out_path):
+    """
+    Collects the rotated outer ring of the cells boundaries. It get all cells not only those
+    within the ROI
+    :param cfg:
+    :param out_path:
+    :return:
+    """
+
+    # collect all cell boundaries
     px_boundaries = cell_boundaries_px_par(cfg)
 
     # make a dataframe with the cell centroids and cell area
@@ -191,9 +217,22 @@ def run(slice_id, region_id):
     logger.info('cell data saved at: %s' % os.path.join(out_path))
 
 
+
+def run(slice_id, region_id):
+    cfg = config.get_config(slice_id=slice_id, region_id=region_id)
+    out_path = os.path.join('D:\\rotated_dapi_map_tiles', slice_id, region_id)
+
+    # 1. get the ROI spots (rotated)
+    roi_spots(cfg, out_path)
+
+    # 2. get all the cell boundaries (rotated)
+    # cell_boundaries(cfg, out_path)
+
+
+
 if __name__ == "__main__":
     slice_ids = [
-        # "MsBrain_Eg1_VS6_JH_V6_05-02-2021",
+        "MsBrain_Eg1_VS6_JH_V6_05-02-2021",
         "MsBrain_Eg2_VS6_V11_JH_05-02-2021",
         "MsBrain_Eg3_VS6_JH_V6_05-01-2021",
         "MsBrain_EG4_VS6library_V6_LH_04-14-21",
