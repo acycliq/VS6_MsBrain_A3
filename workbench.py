@@ -1,5 +1,8 @@
 import pandas as pd
 import numpy as np
+from os import listdir
+from os.path import isfile, join
+from natsort import natsorted
 import src.config as config
 from src.get_data import is_inside_sm_parallel
 import os
@@ -13,9 +16,12 @@ logging.basicConfig(
 
 
 def get_spots(cfg):
+    folder = os.path.join(cfg['target_dir'], 'geneData')
+    tsv_files = [f for f in listdir(folder) if isfile(join(folder, f)) and os.path.splitext(f)[1] == '.tsv']
+    tsv_files = natsorted(tsv_files)
     df_list = []
-    for i in range(6):
-        fName = os.path.join(cfg['target_dir'], 'geneData', 'geneData_%d.tsv' % i)
+    for tsv_file in tsv_files:
+        fName = os.path.join(folder, tsv_file)
         df = pd.read_csv(fName, sep='\t')
         df_list.append(df)
     out = pd.concat(df_list, ignore_index=True)
@@ -29,7 +35,7 @@ if __name__ == "__main__":
     cfg = config.get_config(slice_id=slice_id, region_id=region_id)
     # 1. read the rotated spots
     spots = get_spots(cfg)
-    spots['inside_cell_key'] = np.zeros(spots.shape[0])
+    spots['inside_cell_key'] = np.empty(spots.shape[0], dtype=object)
     logger.info(spots)
 
     # get the cell metadata
@@ -41,7 +47,6 @@ if __name__ == "__main__":
 
     # the boundaries appear to be strings. Convert them to a list of tuples
     _cell_boundaries = [eval(d) for d in cellBoundaries.cell_boundaries]
-    xxx = []
     for i, x in enumerate(_cell_boundaries):
         _cell_boundaries[i] = [tuple(d) for d in x]
     cellBoundaries.cell_boundaries = _cell_boundaries
@@ -86,30 +91,6 @@ if __name__ == "__main__":
             # backfill the inside_cell_key column with the corresponding key
             spots.loc[spots_idx, ['inside_cell_key']] = cell_key
 
-        logger.info('spot labelling finished')
-        print('ok')
+    spots.to_csv('workbench.tsv', sep='\t', index=False)
+    logger.info('finished spot labelling')
 
-    assert 1==0
-    # 2. read the cell rotated polygons
-    cells = pd.read_csv(r"E:\Neuroscience\dev\Python\VS6_MsBrain_A3\MsBrain_Eg1_VS6_JH_V6_05-02-2021\region_0\cellBoundaries\cellBoundaries_0.tsv", sep='\t')
-    logger.info(cells)
-    logger.info('Found %d cells' % cells.shape[0])
-
-    # 3. get the roi
-    if cfg['clip_poly']:
-        logger.info('Found clipping poly. Keeping data inside %s' % cfg['clip_poly'])
-        coords = cfg['clip_poly']
-        if not coords[0] == coords[-1]:
-            logger.info('Closing the polygon')
-            coords.append(coords[0])
-
-    # 3. loop over the polygon and label the spots
-    for d, coords in enumerate(cells.coords):
-        if not coords[0] == coords[-1]:
-            coords = eval(coords)
-            coords.append(coords[0])
-
-        points = spots[['x', 'y']].values
-        poly = np.array(coords)
-        mask = is_inside_sm_parallel(points, poly)
-        logger.info("Cell %d had %d spots" % (d, mask.sum()))
