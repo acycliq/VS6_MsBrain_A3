@@ -1,3 +1,13 @@
+"""
+Code to label the spots. It checks if a spot lies within the cell boundaries and if so then it takes note by
+adding the cell key (the vizgen cell id) to the 'inside_cell_key' column of the spots dataframe. A cell key
+of None means that the spot is on the background (it is not inside any cell)
+
+Note the the code that uses parallelism may give slightly different spots labels compared to the non-parallel code.
+That happens on spots that are exactly on the boundary between two cells.  Depending on how the processes that
+execute the task happen in time and which cell was executed last the cell label may got overwritten from one adjacent
+cell to another, and may be end up to a different (but the neighbouring) cell
+"""
 import pandas as pd
 import numpy as np
 from os import listdir
@@ -106,7 +116,7 @@ def label_spots(cfg):
 
     # populate the inside_cell_key column
     spots['inside_cell_key'] = out
-    spots.to_csv('workbench_par.tsv', sep='\t', index=False)
+    spots.to_csv('labelled_spots.tsv', sep='\t', index=False)
 
 
 
