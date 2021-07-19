@@ -5,6 +5,8 @@ from os.path import isfile, join
 from natsort import natsorted
 import src.config as config
 from src.get_data import is_inside_sm_parallel
+from multiprocessing import Pool, cpu_count
+from functools import partial
 import os
 import logging
 
@@ -27,6 +29,37 @@ def get_spots(cfg):
     out = pd.concat(df_list, ignore_index=True)
     return out
 
+
+def worker(cell_meta, cellBoundaries, spots, all_keys, fov):
+    logger.info('Started fov: %d' % fov)
+    # get the cell keys of the cells in the fov
+    fov_cells_keys = cell_meta[cell_meta.fov == fov]
+
+    # some of the cell keys may not be in the cell boundaries dataframe (probably because I looked on in z3 to capture the boundaries)
+    missing = set(fov_cells_keys.index.values) - all_keys
+
+    # remove the missing
+    idx = set(fov_cells_keys.index.values) - missing
+
+    # get the cells that are captured by this fov
+    cells_in_fov = cellBoundaries.loc[list(idx)]
+
+    spots_in_fov = spots[spots.fov == fov]
+    points = spots_in_fov[['x', 'y']].values
+    for cell_key, row in cells_in_fov.iterrows():
+        outer_ring = row['cell_boundaries']
+        if not outer_ring[-1] == outer_ring[0]:
+            outer_ring.append(outer_ring[0])
+        # find if a spots lies within the poly
+        poly = np.array(outer_ring)
+        mask = is_inside_sm_parallel(points, poly)
+
+        # get the index of those spots that fall inside the poly
+        spots_idx = spots_in_fov.index[mask]
+
+        # backfill the inside_cell_key column with the corresponding key
+        spots.loc[spots_idx, ['inside_cell_key']] = cell_key
+    return spots.inside_cell_key.values
 
 
 if __name__ == "__main__":
@@ -61,36 +94,53 @@ if __name__ == "__main__":
     # 2. loop over the fovs
     fovs = np.unique(spots.fov.values)
     logger.info('start spot labelling')
-    for fov in fovs:
-        logger.info('Started fov: %d' % fov)
-        # get the cell keys of the cells in the fov
-        fov_cells_keys = cell_meta[cell_meta.fov == fov]
 
-        # some of the cell keys may not be in the cell boundaries dataframe (probably because I looked on in z3 to capture the boundaries)
-        missing = set(fov_cells_keys.index.values) - all_keys
+    processes = cpu_count()
+    print(f'Using {processes} processes')
+    pool = Pool(processes=processes)
+    res = pool.map(partial(worker, cell_meta, cellBoundaries, spots, all_keys),  fovs)
+    pool.close()
+    pool.join()
 
-        # remove the missing
-        idx = set(fov_cells_keys.index.values) - missing
+    out = np.empty(spots.shape[0], dtype=object)
+    for lst in res:
+        idx = [i for i, val in enumerate(lst) if val]
+        out[idx] = lst[idx]
 
-        # get the cells that are captured by this fov
-        cells_in_fov = cellBoundaries.loc[list(idx)]
+    spots['inside_cell_key'] = out
+    spots.to_csv('workbench_par.tsv', sep='\t', index=False)
 
-        spots_in_fov = spots[spots.fov == fov]
-        points = spots_in_fov[['x', 'y']].values
-        for cell_key, row in cells_in_fov.iterrows():
-            outer_ring = row['cell_boundaries']
-            if not outer_ring[-1] == outer_ring[0]:
-                outer_ring.append(outer_ring[0])
-            # find if a spots lies within the poly
-            poly = np.array(outer_ring)
-            mask = is_inside_sm_parallel(points, poly)
 
-            # get the index of those spots that fall inside the poly
-            spots_idx = spots_in_fov.index[mask]
-
-            # backfill the inside_cell_key column with the corresponding key
-            spots.loc[spots_idx, ['inside_cell_key']] = cell_key
-
-    spots.to_csv('workbench.tsv', sep='\t', index=False)
+    # for fov in fovs[:10]:
+    #     logger.info('Started fov: %d' % fov)
+    #     # get the cell keys of the cells in the fov
+    #     fov_cells_keys = cell_meta[cell_meta.fov == fov]
+    #
+    #     # some of the cell keys may not be in the cell boundaries dataframe (probably because I looked on in z3 to capture the boundaries)
+    #     missing = set(fov_cells_keys.index.values) - all_keys
+    #
+    #     # remove the missing
+    #     idx = set(fov_cells_keys.index.values) - missing
+    #
+    #     # get the cells that are captured by this fov
+    #     cells_in_fov = cellBoundaries.loc[list(idx)]
+    #
+    #     spots_in_fov = spots[spots.fov == fov]
+    #     points = spots_in_fov[['x', 'y']].values
+    #     for cell_key, row in cells_in_fov.iterrows():
+    #         outer_ring = row['cell_boundaries']
+    #         if not outer_ring[-1] == outer_ring[0]:
+    #             outer_ring.append(outer_ring[0])
+    #         # find if a spots lies within the poly
+    #         poly = np.array(outer_ring)
+    #         mask = is_inside_sm_parallel(points, poly)
+    #
+    #         # get the index of those spots that fall inside the poly
+    #         spots_idx = spots_in_fov.index[mask]
+    #
+    #         # backfill the inside_cell_key column with the corresponding key
+    #         spots.loc[spots_idx, ['inside_cell_key']] = cell_key
+    #
+    # spots.to_csv('workbench_par.tsv', sep='\t', index=False)
     logger.info('finished spot labelling')
 
