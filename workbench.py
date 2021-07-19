@@ -62,10 +62,7 @@ def worker(cell_meta, cellBoundaries, spots, all_keys, fov):
     return spots.inside_cell_key.values
 
 
-if __name__ == "__main__":
-    slice_id = 'MsBrain_Eg1_VS6_JH_V6_05-02-2021'
-    region_id = 'region_0'
-    cfg = config.get_config(slice_id=slice_id, region_id=region_id)
+def label_spots(cfg):
     # 1. read the rotated spots
     spots = get_spots(cfg)
     spots['inside_cell_key'] = np.empty(spots.shape[0], dtype=object)
@@ -74,7 +71,7 @@ if __name__ == "__main__":
     # get the cell metadata
     cell_meta = pd.read_csv(cfg['cell_metadata'], index_col=0)
 
-    # get the boundaries
+    # get the (rotated) boundaries
     cellBoundaries = pd.read_csv(os.path.join(cfg['target_dir'], 'cellBoundaries', 'cellBoundaries.tsv'), sep='\t')
     cellProps = pd.read_csv(os.path.join(cfg['target_dir'], 'cell_props', 'cell_props.tsv'), sep='\t')
 
@@ -84,12 +81,11 @@ if __name__ == "__main__":
         _cell_boundaries[i] = [tuple(d) for d in x]
     cellBoundaries.cell_boundaries = _cell_boundaries
 
-    # join them
+    # add a cell key column to cellBoundaries dataframe
     assert np.all(cellProps.cell_label == cellBoundaries.cell_label), 'cellBoundaries and cell_props are not aligned'
     cellBoundaries['cell_key'] = cellProps.cell_key
     cellBoundaries = cellBoundaries.set_index('cell_key')
     all_keys = set(cellBoundaries.index.values)
-    # cellBoundaries = cellBoundaries.assign(cell_key=cellProps.cell_key.values)
 
     # 2. loop over the fovs
     fovs = np.unique(spots.fov.values)
@@ -102,13 +98,24 @@ if __name__ == "__main__":
     pool.close()
     pool.join()
 
+    # the results from the multiprocessing step is a list of list. Complile all resultes into one list
     out = np.empty(spots.shape[0], dtype=object)
     for lst in res:
         idx = [i for i, val in enumerate(lst) if val]
         out[idx] = lst[idx]
 
+    # populate the inside_cell_key column
     spots['inside_cell_key'] = out
     spots.to_csv('workbench_par.tsv', sep='\t', index=False)
+
+
+
+if __name__ == "__main__":
+    slice_id = 'MsBrain_Eg1_VS6_JH_V6_05-02-2021'
+    region_id = 'region_0'
+    cfg = config.get_config(slice_id=slice_id, region_id=region_id)
+    label_spots(cfg)
+
 
 
     # for fov in fovs[:10]:
@@ -142,5 +149,5 @@ if __name__ == "__main__":
     #         spots.loc[spots_idx, ['inside_cell_key']] = cell_key
     #
     # spots.to_csv('workbench_par.tsv', sep='\t', index=False)
-    logger.info('finished spot labelling')
+    # logger.info('finished spot labelling')
 
